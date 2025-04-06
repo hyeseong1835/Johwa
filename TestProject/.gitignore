@@ -1,0 +1,9 @@
+# 기본적으로 모든 파일 무시
+*
+
+# 예외: Git 추적을 위한 .gitignore 자체는 유지
+!.gitignore
+
+# 예외: Scripts 폴더 및 그 안의 모든 파일 포함
+!/Scripts
+!/Scripts/**
