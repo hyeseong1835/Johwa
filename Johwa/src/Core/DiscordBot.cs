@@ -1,5 +1,5 @@
 using Johwa.Rest;
-using Johwa.Gateway;
+using Johwa.Event;
 
 namespace Johwa.Core;
 
