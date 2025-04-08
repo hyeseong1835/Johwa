@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Johwa.Common.Json;
+using Johwa.Common.JsonSource;
 
 namespace Johwa.Resources.User;
 

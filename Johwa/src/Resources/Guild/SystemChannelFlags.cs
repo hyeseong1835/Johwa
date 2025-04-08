@@ -5,7 +5,7 @@ namespace Johwa.Resources.Guild;
 /// System Channel Flags
 /// </summary>
 [Flags]
-public enum SystemChannelFlags
+public enum SystemChannelFlag
 {
     /// <summary>
     /// 멤버 가입 알림 숨김 <br/>

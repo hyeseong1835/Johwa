@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Johwa.Common.Json;
+using Johwa.Common.JsonSource;
 using Johwa.Resources.User;
 using Johwa.Utility.Json;
 
@@ -23,8 +23,8 @@ public struct GuildMemberObject : IJsonSource
     /// 해당 길드 멤버가 나타내는 유저 객체 <br/>
     /// the user this guild member represents
     /// </summary>
-    public UserObject? User 
-        => Property.FindJsonSourceOrNull<UserObject>("user");
+    //public UserObject? User 
+    //    => Property.FindJsonSourceOrNull<UserObject>("user");
 
     /// <summary>
     /// [ nick? ] <br/>

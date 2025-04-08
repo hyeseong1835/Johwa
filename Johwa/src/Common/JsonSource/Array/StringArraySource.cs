@@ -1,17 +1,26 @@
 using System.Text.Json;
 
-namespace Johwa.Common.Json;
+namespace Johwa.Common.JsonSource;
 
 public struct StringArraySource : IJsonSource
 {
     public JsonElement Property { get; set; }
 
-    public StringArraySource(JsonElement stringArrayProperty)
+    /// <param name="stringArrayProp">
+    /// .ValueKind == JsonValueKind.Null -> ArgumentNullException <br/>
+    /// .ValueKind != JsonValueKind.Array -> InvalidOperationException <br/>
+    /// </param>
+    /// <exception cref="ArgumentNullException"></exception>
+    /// <exception cref="InvalidOperationException"></exception>
+    public StringArraySource(JsonElement stringArrayProp)
     {
-        if (stringArrayProperty.ValueKind != JsonValueKind.Array) {
-            throw new InvalidOperationException("Property는 배열이 아닙니다.");
+        if (stringArrayProp.ValueKind == JsonValueKind.Null) {
+            throw new ArgumentNullException($"JsonSource는 Null일 수 없습니다.");
         }
-        Property = stringArrayProperty;
+        if (stringArrayProp.ValueKind != JsonValueKind.Array) {
+            throw new InvalidOperationException($"{nameof(StringArraySource)}의 프로퍼티는 배열이어야 합니다.");
+        }
+        Property = stringArrayProp;
     }
     public string[] ToStringArray()
     {

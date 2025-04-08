@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Johwa.Common;
-using Johwa.Common.Json;
+using Johwa.Common.JsonSource;
 
 namespace Johwa.Resources.AutoModeration;
 

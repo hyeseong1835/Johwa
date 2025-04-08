@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Johwa.Common.Json;
-using Johwa.Utility.StringResourceArrayUtility;
+using Johwa.Common.JsonSource;
+using Johwa.Utility;
 
 namespace Johwa.Resources.Application;
 
@@ -22,7 +22,7 @@ public struct InstallParamsObject : IJsonSource
     /// Scopes to add the application to the server with
     /// </summary>
     public StringArraySource Scopes 
-        => Property.GetProperty("scopes").GetStringResourceArray();
+        => Property.FindStringArraySource("scopes");
 
     /// <summary>
     /// 봇 역할에 요청할 권한 <br/>

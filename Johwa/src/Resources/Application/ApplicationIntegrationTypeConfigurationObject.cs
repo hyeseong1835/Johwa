@@ -1,5 +1,6 @@
 using System.Text.Json;
-using Johwa.Common.Json;
+using Johwa.Common.JsonSource;
+using Johwa.Utility.Json;
 
 namespace Johwa.Resources.Application;
 
@@ -17,15 +18,10 @@ public struct ApplicationIntegrationTypeConfigurationObject : IJsonSource
     }
 
     /// <summary>
-    /// [ oauth2_install_params? ] <br/>
+    /// [ oauth2_install_params? (install params object) ] <br/>
     /// 해당 설치 컨텍스트의 설치 매개변수 <br/>
     /// Install params for each installation context's default in-app authorization link
     /// </summary>
-    public InstallParamsObject? OAuth2InstallParams { get {
-        JsonElement prop;
-        if (Property.TryGetProperty("oauth2_install_params", out prop) == false)
-            return null;
-        
-        return new InstallParamsObject(prop);
-    } }
+    public InstallParamsObject? OAuth2InstallParams
+        => Property.FindJsonSourceOrNull<InstallParamsObject>("oauth2_install_params");
 }

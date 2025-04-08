@@ -1,5 +1,9 @@
 using System.Text.Json;
-using Johwa.Common.Json;
+using Johwa.Common;
+using Johwa.Common.JsonSource;
+using Johwa.Resources.Guild;
+using Johwa.Utility;
+using Johwa.Utility.Json;
 
 namespace Johwa.Resources.Voice;
 
@@ -21,89 +25,63 @@ public struct VoiceStateObject : IJsonSource
     /// 이 Voice State가 속한 길드 ID <br/>
     /// the guild id this voice state is for
     /// </summary>
-    public ulong? GuildId { get {
-        JsonElement prop;
-        if (Property.TryGetProperty("guild_id", out prop) == false)
-            return null;
-
-        if (prop.ValueKind == JsonValueKind.String)
-            return ulong.TryParse(prop.GetString(), out var id) ? id : null;
-
-        if (prop.ValueKind == JsonValueKind.Number)
-            return prop.GetUInt64();
-
-        return null;
-    } }
+    public Snowflake? GuildId 
+        => Property.FindSnowflakeOrNull("guild_id");
 
     /// <summary>
     /// [ channel_id? ] <br/>
     /// 사용자가 연결된 채널 ID <br/>
     /// the channel id this user is connected to
     /// </summary>
-    public ulong? ChannelId { get {
-        JsonElement prop;
-        if (Property.TryGetProperty("channel_id", out prop) == false)
-            return null;
-
-        if (prop.ValueKind == JsonValueKind.String)
-            return ulong.TryParse(prop.GetString(), out var id) ? id : null;
-
-        if (prop.ValueKind == JsonValueKind.Number)
-            return prop.GetUInt64();
-
-        return null;
-    } }
+    public Snowflake? ChannelId 
+        => Property.FindSnowflakeOrNull("channel_id");
 
     /// <summary>
     /// [ user_id ] <br/>
     /// 해당 Voice State의 사용자 ID <br/>
     /// the user id this voice state is for
     /// </summary>
-    public ulong UserId => Property.GetProperty("user_id").GetUInt64();
+    public Snowflake UserId 
+        => Property.FindSnowflake("user_id");
 
     /// <summary>
     /// [ member? ] <br/>
     /// 해당 Voice State의 길드 멤버 정보 <br/>
     /// the guild member this voice state is for
     /// </summary>
-    public GuildMemberObject? Member { get {
-        JsonElement prop;
-        if (Property.TryGetProperty("member", out prop) == false)
-            return null;
-
-        if (prop.ValueKind == JsonValueKind.Null)
-            return null;
-
-        return new GuildMemberObject(prop);
-    } }
+    public GuildMemberObject? Member 
+        => Property.FindJsonSourceOrNull<GuildMemberObject>("member");
 
     /// <summary>
     /// [ session_id ] <br/>
     /// 해당 Voice State의 세션 ID <br/>
     /// the session id for this voice state
     /// </summary>
-    public string SessionId => Property.GetProperty("session_id").GetString()!;
+    public string SessionId 
+        => Property.FindString("session_id");
 
     /// <summary>
     /// [ deaf ] <br/>
     /// 서버에서 사용자를 청각 제한했는지 여부 <br/>
     /// whether this user is deafened by the server
     /// </summary>
-    public bool Deaf => Property.GetProperty("deaf").GetBoolean();
+    public bool Deaf 
+        => Property.FindBoolean("deaf");
 
     /// <summary>
     /// [ mute ] <br/>
     /// 서버에서 사용자를 음소거했는지 여부 <br/>
     /// whether this user is muted by the server
     /// </summary>
-    public bool Mute => Property.GetProperty("mute").GetBoolean();
+    public bool Mute 
+        => Property.FindBoolean("mute");
 
     /// <summary>
     /// [ self_deaf ] <br/>
     /// 사용자가 로컬에서 본인을 청각 제한했는지 여부 <br/>
     /// whether this user is locally deafened
     /// </summary>
-    public bool SelfDeaf => Property.GetProperty("self_deaf").GetBoolean();
+    public bool SelfDeaf => Property.FindBoolean("self_deaf");
 
     /// <summary>
     /// [ self_mute ] <br/>

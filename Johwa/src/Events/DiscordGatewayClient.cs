@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Johwa.Core;
 using Johwa.Utility.Json;
 
@@ -15,49 +16,24 @@ public class DiscordGatewayClient
     const string GatewayUrl = "wss://gateway.discord.gg/?v=10&encoding=json";
     static readonly Uri gatewayUri = new Uri(GatewayUrl);
 
-    // GatewayEvent 인스턴스 딕셔너리
-    static readonly Dictionary<string, DispatchEvent> gatewayEventDictionary = GetGatewayEvents();
-    static Dictionary<string, DispatchEvent> GetGatewayEvents() 
-    {
-        Dictionary<string, DispatchEvent> result = new();
-
-        Assembly assembly = typeof(DiscordGatewayClient).Assembly;
-        foreach (Type type in assembly.GetTypes())
-        {
-            if (type.IsSubclassOf(typeof(DispatchEvent)) && !type.IsAbstract)
-            {
-                DispatchEvent? instance = (DispatchEvent?)Activator.CreateInstance(type);
-                if (instance == null) {
-                    Console.WriteLine($"[ 오류 ] GatewayEvent 인스턴스 생성 실패: {type.Name}");
-                    continue;
-                }
-                
-                DispatchEventAttribute? attribute = type.GetCustomAttribute<DispatchEventAttribute>();
-                if (attribute == null) {
-                    Console.WriteLine($"[ 오류 ] GatewayEventAttribute가 없음: {type.Name}");
-                    continue;
-                }
-
-                result.Add(attribute.eventName, instance);
-            }
-        }
-        return result;
-    }
+    // 디스패치 이벤트
+    public static readonly Dictionary<string, int> dispatchEventIndexDictionary = new();
+    static List<DispatchEventGroup> dispatchEventGroupList = new();
 
     #endregion
 
     #region 필드
     
-    public readonly DiscordBot bot;
+    public string token;
     public GatewayIdentifyProperties gatewayIdentifyProperties;
-    
-    #region IdentifyProperties
 
-    #endregion
-
+    // 웹소켓 연결
     readonly ClientWebSocket webSocket;
     CancellationTokenSource? webSocketCts;
+
+    // 수신 루프
     Task? receiveLoopTask;
+    CancellationTokenSource? receiveLoopCts;
 
     int? _lastSequence = null;
     
@@ -73,9 +49,9 @@ public class DiscordGatewayClient
 
     #endregion
 
-    public DiscordGatewayClient(DiscordBot bot, GatewayIdentifyProperties? gatewayIdentifyProperties = null)
+    public DiscordGatewayClient(string token, GatewayIdentifyProperties? gatewayIdentifyProperties = null)
     {
-        this.bot = bot;
+        this.token = token;
         this.gatewayIdentifyProperties = gatewayIdentifyProperties?? new GatewayIdentifyProperties();
 
         this.webSocket = new ClientWebSocket();
@@ -102,7 +78,7 @@ public class DiscordGatewayClient
         await webSocket.ConnectAsync(gatewayUri, webSocketCts.Token);
 
         // 수신 루프 시작
-        receiveLoopTask = Task.Run(ReceiveLoop);
+        StartReceiveLoop();
 
         Console.WriteLine("[ 로그 ] 웹소켓 연결됨");
     }
@@ -121,7 +97,7 @@ public class DiscordGatewayClient
         Console.WriteLine("[ 로그 ] 웹소켓 연결 해제됨");
     }
 
-    public async Task ReconnectAsync()
+    public async Task Reconnect()
     {
         await Disconnect();
         await Connect();
@@ -192,76 +168,139 @@ public class DiscordGatewayClient
         Console.WriteLine($"[ 로그 ] 송신 ({byteCount}bytes): \n{prettyJsonString}");
     }
 
-    async Task ReceiveLoop()
+    void StartReceiveLoop()
     {
-        // 버퍼 대여
-        byte[] buffer = ArrayPool<byte>.Shared.Rent(8192);
-        try
-        {
-            while (webSocket.State == WebSocketState.Open && webSocketCts != null && !webSocketCts.Token.IsCancellationRequested)
+        if (receiveLoopTask != null) {
+            Console.WriteLine("[ 오류 ] 수신 루프가 이미 실행 중입니다.");
+            return;
+        }
+        receiveLoopCts = new CancellationTokenSource();
+
+        // 수신 루프 시작
+        receiveLoopTask = Task.Run(async () => {
+            // 버퍼 대여
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(8192);
+            try
             {
-                // 수신 대기
-                WebSocketReceiveResult result = await webSocket.ReceiveAsync(buffer, webSocketCts.Token);
-                if (result.MessageType == WebSocketMessageType.Close) {
-                    Console.WriteLine($"[ 로그 ] 수신: 웹소켓 연결 종료 ({result.CloseStatus})");
-                    break;
-                }
-
-                // 수신된 데이터 처리
-                string jsonString = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                string prettyJsonString = JsonUtility.ToPrettyJsonString(jsonString);
-                JsonElement payload = JsonSerializer.Deserialize<JsonElement>(jsonString);
-
-                // opcode 따라서 처리
-                GatewayOpcode operationCode = (GatewayOpcode)payload.GetProperty("op").GetInt32();
-                Console.WriteLine($"[ 로그 ] 수신: {operationCode} \n{prettyJsonString}");
-
-                switch (operationCode)
+                while (webSocket.State == WebSocketState.Open && webSocketCts != null && !webSocketCts.Token.IsCancellationRequested)
                 {
-                    // 0
-                    case GatewayOpcode.Dispatch: HandleDispatch(payload); break; 
-                    // 7
-                    case GatewayOpcode.Reconnect: HandleReconnect(payload); break;
-                    // 8
-                    case GatewayOpcode.InvalidSession: HandleInvalidSession(payload); break;
-                    // 10
-                    case GatewayOpcode.Hello: HandleHello(payload); break;
-                    // 11
-                    case GatewayOpcode.HeartbeatAck: HandleHeartbeatAck(payload); break;
-
-                    // 클라이언트에서 전송하는 페이로드
-                    case GatewayOpcode.Heartbeat: //1
-                    case GatewayOpcode.Identify: //2
-                    case GatewayOpcode.PresenceUpdate: //3
-                    case GatewayOpcode.VoiceStateUpdate: //4
-                    case GatewayOpcode.Resume: //6
-                    case GatewayOpcode.RequestGuildMembers: //8
-                    case GatewayOpcode.RequestSoundboardSounds: //31
-                        break;
-
-                    default:
-                        Console.WriteLine($"[ 오류 ] 대응하지 않은 opcode: {operationCode}");
-                        break;
+                    await ReceiveEvent(buffer, receiveLoopCts.Token);
                 }
             }
-        }
-        catch (OperationCanceledException)
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ 오류 ] 이벤트 수신 오류: \n{ex.Message}");
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        });
+    }
+    async Task StopReceiveLoop()
+    {
+        await CancelReceiveLoop();
+    }
+    async Task CancelReceiveLoop()
+    {
+        if (receiveLoopCts == null) return;
+        
+        try
         {
-            Console.WriteLine("[ 경고 ] 수신 루프 취소됨");
+            receiveLoopCts.Cancel();
+            if (receiveLoopTask != null) {
+                await receiveLoopTask;
+                receiveLoopTask = null;
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ 오류 ] 이벤트 수신 오류: \n{ex.Message}");
+            Console.WriteLine($"[ 오류 ] 수신 루프 취소 중 오류: \n{ex.Message}");
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(buffer);
+            receiveLoopCts.Dispose();
+            receiveLoopCts = null;
         }
+    }
+    async Task ReceiveEvent(byte[] buffer, CancellationToken cancellationToken)
+    {
+        // 수신 대기
+        WebSocketReceiveResult result;
+        try
+        {
+            result = await webSocket.ReceiveAsync(buffer, cancellationToken);
+        }
+        catch (WebSocketException ex)
+        {
+            Console.WriteLine($"[ 오류 ] 웹소켓 수신 오류: \n{ex.Message}");
+            return;
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("[ 로그 ] 수신 루프 취소");
+            await CancelReceiveLoop();
+            return;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ 오류 ] 수신 오류: \n{ex.Message}");
+            return;
+        }
+
+        if (result == null) return;
+
+        if (result.MessageType == WebSocketMessageType.Close) {
+            Console.WriteLine($"[ 로그 ] 수신: 웹소켓 연결 종료 ({result.CloseStatus})");
+            return;
+        }
+
+        string jsonString = Encoding.UTF8.GetString(buffer, 0, result.Count);
+        await HandleEvent(jsonString);
     }
 
     #region 이벤트 핸들링 메서드
 
-    void HandleDispatch(JsonElement payload)
+    async Task HandleEvent(string jsonString)
+    {
+        // 수신된 데이터 처리
+        string prettyJsonString = JsonUtility.ToPrettyJsonString(jsonString);
+        JsonElement payload = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+        // opcode 따라서 처리
+        GatewayOpcode operationCode = (GatewayOpcode)payload.GetProperty("op").GetInt32();
+        Console.WriteLine($"[ 로그 ] 수신: {operationCode} \n{prettyJsonString}");
+
+        switch (operationCode)
+        {
+            // 0
+            case GatewayOpcode.Dispatch: await HandleDispatch(payload); break; 
+            // 7
+            case GatewayOpcode.Reconnect: await HandleReconnect(payload); break;
+            // 8
+            case GatewayOpcode.InvalidSession: await HandleInvalidSession(payload); break;
+            // 10
+            case GatewayOpcode.Hello: await HandleHello(payload); break;
+            // 11
+            case GatewayOpcode.HeartbeatAck: await HandleHeartbeatAck(payload); break;
+
+            // 클라이언트에서 전송하는 페이로드
+            case GatewayOpcode.Heartbeat: //1
+            case GatewayOpcode.Identify: //2
+            case GatewayOpcode.PresenceUpdate: //3
+            case GatewayOpcode.VoiceStateUpdate: //4
+            case GatewayOpcode.Resume: //6
+            case GatewayOpcode.RequestGuildMembers: //8
+            case GatewayOpcode.RequestSoundboardSounds: //31
+                break;
+
+            default:
+                Console.WriteLine($"[ 오류 ] 대응하지 않은 opcode: {operationCode}");
+                break;
+        }
+    }
+
+    async Task HandleDispatch(JsonElement payload)
     {
         // 시퀀스 번호 추출
         JsonElement sequenceProperty;
@@ -281,38 +320,41 @@ public class DiscordGatewayClient
                 return;
             }
 
-            Console.WriteLine($"[ 이벤트 ] {eventType} 수신됨");
-
-            DispatchEvent? gatewayEvent;
-            if (gatewayEventDictionary.TryGetValue(eventType, out gatewayEvent) == false) {
-                Console.WriteLine($"정의하지 않은 DispatchEvent: {eventType}");
-                return;
+            int eventIndex;
+            DispatchEventGroup dispatchEventGroup;
+            if (dispatchEventIndexDictionary.TryGetValue(eventType, out eventIndex)) 
+            {
+                dispatchEventGroup = dispatchEventGroupList[eventIndex];
+            }
+            else
+            {
+                dispatchEventGroup = new DispatchEventGroup();
+                dispatchEventIndexDictionary.Add(eventType, dispatchEventGroupList.Count);
+                dispatchEventGroupList.Add(dispatchEventGroup);
             }
             JsonElement data = payload.GetProperty("d");
-            gatewayEvent.HandleAsync(this, data);
+            await dispatchEventGroup.Execute(this, data);
         }
-
     }
-    void HandleReconnect(JsonElement payload)
+    async Task HandleReconnect(JsonElement payload)
     {
-        _ = ReconnectAsync();
+        await Reconnect();
     }
-    void HandleInvalidSession(JsonElement payload)
+    async Task HandleInvalidSession(JsonElement payload)
     {
         // 세션이 무효화됨 → Identify 또는 Resume 수행
-        Console.WriteLine("❗ Invalid Session 수신");
-        if (payload.GetProperty("d").GetBoolean())
+        if (payload.FindBoolean("d"))
         {
-            Console.WriteLine("❗ 세션 재개 불가 → Identify 수행");
-            _ = SendIdentifyPayLoad();
+            await Disconnect();
+
+            await SendIdentifyPayLoad();
         }
         else
         {
-            Console.WriteLine("❗ 세션 재개 가능 → Resume 수행");
-            // Resume 수행 로직 추가 필요
+
         }
     }
-    void HandleHello(JsonElement payload)
+    async Task HandleHello(JsonElement payload)
     {
         JsonElement dataProperty = payload.GetProperty("d");
         int interval = dataProperty.GetProperty("heartbeat_interval").GetInt32();
@@ -327,7 +369,7 @@ public class DiscordGatewayClient
         StartHeartbeatLoop(interval);
     }
 
-    void HandleHeartbeatAck(JsonElement payload)
+    async Task HandleHeartbeatAck(JsonElement payload)
     {
         _lastHeartbeatAck = DateTime.Now;
     }
@@ -465,7 +507,7 @@ public class DiscordGatewayClient
             op = GatewayOpcode.Identify,
             d = new
             {
-                token = bot.token,
+                token = token,
                 intents = 513,
                 properties = new
                 {

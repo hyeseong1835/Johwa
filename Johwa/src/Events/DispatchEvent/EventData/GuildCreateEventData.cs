@@ -1,6 +1,7 @@
 using System.Text.Json;
-using Johwa.Common.Json;
+using Johwa.Common.JsonSource;
 using Johwa.Resources.Channel;
+using Johwa.Resources.Guild;
 using Johwa.Resources.Voice;
 using Johwa.Utility.Json;
 
@@ -14,6 +15,13 @@ public struct GuildCreateEventData
     {
         this.jsonElement = jsonElement;
     }
+
+    public GuildObject? Guild{ get {
+        if (IsUnavailable) {
+            return null;
+        }
+        return new GuildObject(jsonElement);
+    } }
 
     /// <summary>
     /// [ joined_at ] <br/>
@@ -84,30 +92,30 @@ public struct GuildCreateEventData
     /// 현재 상태 정보 (대규모 길드인 경우 오프라인은 포함되지 않음) <br/>
     /// Presences of the members in the guild
     /// </summary>
-    public JsonSourceArraySource<PresenceObject> Presences 
-        => jsonElement.FindJsonSourceArraySource<PresenceObject>("presences");
+    //public JsonSourceArraySource<PresenceUpdateObject> Presences 
+    //    => jsonElement.FindJsonSourceArraySource<PresenceUpdateObject>("presences");
 
     /// <summary>
     /// [ stage_instances ] <br/>
     /// 스테이지 인스턴스 정보 <br/>
     /// Stage instances in the guild
     /// </summary>
-    public JsonSourceArraySource<StageInstanceObject> StageInstances 
-        => jsonElement.FindJsonSourceArraySource<StageInstanceObject>("stage_instances");
+    //public JsonSourceArraySource<StageInstanceObject> StageInstances 
+    //    => jsonElement.FindJsonSourceArraySource<StageInstanceObject>("stage_instances");
 
     /// <summary>
     /// [ guild_scheduled_events ] <br/>
     /// 예정된 길드 이벤트 목록 <br/>
     /// Scheduled events in the guild
     /// </summary>
-    public JsonSourceArraySource<GuildScheduledEventObject> ScheduledEvents 
-        => jsonElement.FindJsonSourceArraySource<GuildScheduledEventObject>("guild_scheduled_events");
+    //public JsonSourceArraySource<GuildScheduledEventObject> ScheduledEvents 
+    //    => jsonElement.FindJsonSourceArraySource<GuildScheduledEventObject>("guild_scheduled_events");
 
     /// <summary>
     /// [ soundboard_sounds ] <br/>
     /// 사운드보드 사운드 목록 <br/>
     /// Soundboard sounds in the guild
     /// </summary>
-    public JsonSourceArraySource<SoundboardSoundObject> SoundboardSounds 
-        => jsonElement.FindJsonSourceArraySource<SoundboardSoundObject>("soundboard_sounds");
+    //public JsonSourceArraySource<SoundboardSoundObject> SoundboardSounds 
+    //    => jsonElement.FindJsonSourceArraySource<SoundboardSoundObject>("soundboard_sounds");
 }

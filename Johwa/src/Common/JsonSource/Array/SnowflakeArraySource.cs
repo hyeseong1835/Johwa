@@ -1,18 +1,21 @@
 using System.Text.Json;
 using Johwa.Utility;
 
-namespace Johwa.Common.Json;
+namespace Johwa.Common.JsonSource;
 
 public struct SnowflakeArraySource : IJsonSource
 {
     public JsonElement Property { get; set; }
 
-    public SnowflakeArraySource(JsonElement intEnumArrayProperty)
+    public SnowflakeArraySource(JsonElement ulongArrayProp)
     {
-        if (intEnumArrayProperty.ValueKind != JsonValueKind.Array) {
-            throw new InvalidOperationException($"{nameof(intEnumArrayProperty)}는 배열이 아닙니다.");
+        if (ulongArrayProp.ValueKind == JsonValueKind.Null) {
+            throw new ArgumentNullException($"JsonSource는 Null일 수 없습니다.");
         }
-        Property = intEnumArrayProperty;
+        if (ulongArrayProp.ValueKind != JsonValueKind.Array) {
+            throw new InvalidOperationException($"{nameof(SnowflakeArraySource)}의 프로퍼티는 배열이어야 합니다.");
+        }
+        Property = ulongArrayProp;
     }
     public Snowflake this[int index]
         => Property[index].GetSnowflake();

@@ -1,18 +1,21 @@
 using System.Text.Json;
 
-namespace Johwa.Common.Json;
+namespace Johwa.Common.JsonSource;
 
 public struct JsonElementDictionaryResource
 {
     public JsonElement Property { get; set; }
 
-    public JsonElementDictionaryResource(JsonElement dictionaryProperty)
+    public JsonElementDictionaryResource(JsonElement dictionaryProp)
     {
-        if (dictionaryProperty.ValueKind != JsonValueKind.Object) {
-            throw new InvalidOperationException("Property는 객체가 아닙니다.");
+        if (dictionaryProp.ValueKind == JsonValueKind.Null) {
+            throw new ArgumentNullException($"JsonSource는 Null일 수 없습니다.");
+        }
+        if (dictionaryProp.ValueKind != JsonValueKind.Object) {
+            throw new InvalidOperationException($"{nameof(JsonElementDictionaryResource)}의 프로퍼티는 객체이어야 합니다.");
         }
         
-        this.Property = dictionaryProperty;
+        this.Property = dictionaryProp;
     }
     
     public JsonElement this[string key] {
