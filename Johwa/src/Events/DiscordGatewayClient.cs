@@ -174,6 +174,10 @@ public class DiscordGatewayClient
             Console.WriteLine("[ 오류 ] 수신 루프가 이미 실행 중입니다.");
             return;
         }
+        if (receiveLoopCts != null) {
+            Console.WriteLine("[ 오류 ] 수신 루프 취소 토큰이 정리되지 않았습니다.");
+            return;
+        }
         receiveLoopCts = new CancellationTokenSource();
 
         // 수신 루프 시작
@@ -196,10 +200,6 @@ public class DiscordGatewayClient
                 ArrayPool<byte>.Shared.Return(buffer);
             }
         });
-    }
-    async Task StopReceiveLoop()
-    {
-        await CancelReceiveLoop();
     }
     async Task CancelReceiveLoop()
     {
@@ -256,12 +256,12 @@ public class DiscordGatewayClient
         }
 
         string jsonString = Encoding.UTF8.GetString(buffer, 0, result.Count);
-        await HandleEvent(jsonString);
+        await HandleEvent(jsonString, cancellationToken);
     }
 
     #region 이벤트 핸들링 메서드
 
-    async Task HandleEvent(string jsonString)
+    async Task HandleEvent(string jsonString, CancellationToken cancellationToken)
     {
         // 수신된 데이터 처리
         string prettyJsonString = JsonUtility.ToPrettyJsonString(jsonString);
@@ -274,15 +274,49 @@ public class DiscordGatewayClient
         switch (operationCode)
         {
             // 0
-            case GatewayOpcode.Dispatch: await HandleDispatch(payload); break; 
+            case GatewayOpcode.Dispatch: {
+                await HandleDispatch(payload, cancellationToken); 
+                break; 
+            }
             // 7
-            case GatewayOpcode.Reconnect: await HandleReconnect(payload); break;
+            case GatewayOpcode.Reconnect: {
+                await Reconnect();
+                break;
+            }
             // 8
-            case GatewayOpcode.InvalidSession: await HandleInvalidSession(payload); break;
+            case GatewayOpcode.InvalidSession: {
+                // 세션이 무효화됨 → Identify 또는 Resume 수행
+                if (payload.FindBoolean("d"))
+                {
+                    await Disconnect();
+
+                    await SendIdentifyPayLoad();
+                }
+                else
+                {
+
+                } break;
+            }
             // 10
-            case GatewayOpcode.Hello: await HandleHello(payload); break;
+            case GatewayOpcode.Hello: {
+                JsonElement dataProperty = payload.GetProperty("d");
+                int interval = dataProperty.GetProperty("heartbeat_interval").GetInt32();
+
+                // Identify는 Hello 이후에 반드시 보내야 함
+                
+                _ = Task.Run(async () => {
+                    await Task.Delay(100); 
+                    await SendIdentifyPayLoad();
+                });
+
+                StartHeartbeatLoop(interval); 
+                break;
+            }
             // 11
-            case GatewayOpcode.HeartbeatAck: await HandleHeartbeatAck(payload); break;
+            case GatewayOpcode.HeartbeatAck: {
+                _lastHeartbeatAck = DateTime.Now;
+                break;
+            }
 
             // 클라이언트에서 전송하는 페이로드
             case GatewayOpcode.Heartbeat: //1
@@ -300,7 +334,7 @@ public class DiscordGatewayClient
         }
     }
 
-    async Task HandleDispatch(JsonElement payload)
+    async Task HandleDispatch(JsonElement payload, CancellationToken cancellationToken)
     {
         // 시퀀스 번호 추출
         JsonElement sequenceProperty;
@@ -336,42 +370,10 @@ public class DiscordGatewayClient
             await dispatchEventGroup.Execute(this, data);
         }
     }
-    async Task HandleReconnect(JsonElement payload)
+    
+    void HandleHeartbeatAck(JsonElement payload)
     {
-        await Reconnect();
-    }
-    async Task HandleInvalidSession(JsonElement payload)
-    {
-        // 세션이 무효화됨 → Identify 또는 Resume 수행
-        if (payload.FindBoolean("d"))
-        {
-            await Disconnect();
-
-            await SendIdentifyPayLoad();
-        }
-        else
-        {
-
-        }
-    }
-    async Task HandleHello(JsonElement payload)
-    {
-        JsonElement dataProperty = payload.GetProperty("d");
-        int interval = dataProperty.GetProperty("heartbeat_interval").GetInt32();
-
-        // Identify는 Hello 이후에 반드시 보내야 함
         
-        _ = Task.Run(async () => {
-            await Task.Delay(100); 
-            await SendIdentifyPayLoad();
-        });
-
-        StartHeartbeatLoop(interval);
-    }
-
-    async Task HandleHeartbeatAck(JsonElement payload)
-    {
-        _lastHeartbeatAck = DateTime.Now;
     }
 
     #endregion
