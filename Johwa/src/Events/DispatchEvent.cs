@@ -18,5 +18,5 @@ public abstract class DispatchEvent
             this.eventName = eventType.ToString();
         }
     }
-    public abstract Task Handle(DiscordGatewayClient client, JsonElement data);
+    public abstract void Handle(DiscordGatewayClient client, ReadOnlySpan<byte> data);
 }

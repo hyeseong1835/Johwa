@@ -1,10 +1,8 @@
 using System.Buffers;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
-using Johwa.Core;
+using Johwa.Extension.System.Text.Json;
 using Johwa.Utility.Json;
 
 namespace Johwa.Event;
@@ -17,8 +15,7 @@ public class DiscordGatewayClient
     static readonly Uri gatewayUri = new Uri(GatewayUrl);
 
     // 디스패치 이벤트
-    public static readonly Dictionary<string, int> dispatchEventIndexDictionary = new();
-    static List<DispatchEventGroup> dispatchEventGroupList = new();
+    DispatchEventGroupDictionary dispatchEventDictionary = new();
 
     #endregion
 
@@ -26,6 +23,7 @@ public class DiscordGatewayClient
     
     public string token;
     public GatewayIdentifyProperties gatewayIdentifyProperties;
+    public int receiveBufferSize;
 
     // 웹소켓 연결
     readonly ClientWebSocket webSocket;
@@ -49,8 +47,9 @@ public class DiscordGatewayClient
 
     #endregion
 
-    public DiscordGatewayClient(string token, GatewayIdentifyProperties? gatewayIdentifyProperties = null)
+    public DiscordGatewayClient(string token, GatewayIdentifyProperties? gatewayIdentifyProperties = null, int receiveBufferSize = 8192)
     {
+        this.receiveBufferSize = receiveBufferSize;
         this.token = token;
         this.gatewayIdentifyProperties = gatewayIdentifyProperties?? new GatewayIdentifyProperties();
 
@@ -255,61 +254,227 @@ public class DiscordGatewayClient
             return;
         }
 
-        string jsonString = Encoding.UTF8.GetString(buffer, 0, result.Count);
-        await HandleEvent(jsonString, cancellationToken);
+        HandleEvent(buffer);
     }
 
     #region 이벤트 핸들링 메서드
 
-    async Task HandleEvent(string jsonString, CancellationToken cancellationToken)
+    void ReadGatewayPayload(ReadOnlySpan<byte> span, 
+        out GatewayOpcode op, out ReadOnlySpan<byte> d, out int s, out ReadOnlySpan<byte> t)
+    {
+        Utf8JsonReader reader = new(span);
+
+        op = default;
+        d = default;
+        s = default;
+        t = default;
+
+        bool isOpFound = false;
+        bool isDFound = false;
+        bool isSFound = false;
+        bool isTFound = false;
+
+        while (reader.Read())
+        {
+            // 깊이 1만 탐색
+            if (reader.CurrentDepth != 1)
+                continue;
+            
+            // 프로퍼티 이름만 탐색
+            if (reader.TokenType != JsonTokenType.PropertyName) 
+                continue;
+
+            // Opcode
+            if (isOpFound == false && reader.ValueTextEquals("op"))
+            {
+                // 값으로 이동
+                reader.Read();
+
+                op = (GatewayOpcode)reader.GetInt32();
+                isOpFound = true;
+
+                if (isDFound && isSFound && isTFound)
+                    return;
+            }
+            
+            // Data
+            if (isDFound == false && reader.ValueTextEquals("d"))
+            {
+                // 값으로 이동
+                reader.Read();
+
+                d = reader.ValueSpan;
+
+                if (isOpFound && isSFound && isTFound)
+                    return;
+
+                isDFound = true;
+            }
+
+            // "d" 키를 찾으면 오브젝트 내용을 읽어 저장하는 코드
+            if (!isDFound && reader.ValueTextEquals("d"))
+            {
+                reader.Read(); // "d"의 값으로 이동 (StartObject)
+
+                if (reader.TokenType != JsonTokenType.StartObject){
+                    throw new JsonException("Expected StartObject token for 'd' property.");
+                }
+
+                // 객체 시작 위치 기록
+                int start = (int)reader.TokenStartIndex; 
+
+                int depth = reader.CurrentDepth;
+
+                // 객체가 끝날 때까지 반복하여 읽기
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.EndObject && reader.CurrentDepth == depth - 1)
+                    {
+                        // 객체의 끝 위치
+                        int end = (int)reader.BytesConsumed; 
+
+                        // 원본 JSON에서 객체에 해당하는 부분을 추출
+                        d = span.Slice(start, end - start);
+                        break;
+                    }
+                }
+                if (d == default) {
+                    throw new JsonException("Failed to read 'd' property as object.");
+                }
+            }
+            
+            // Sequence
+            if (isSFound == false && reader.ValueTextEquals("s"))
+            {
+                // 값으로 이동
+                reader.Read();
+
+                if (reader.TokenType == JsonTokenType.Null)
+                {
+                    t = default;
+                    isTFound = true;
+
+                    s = default;
+
+                    if (isOpFound && isDFound) 
+                        return;
+                    
+                    isSFound = true;
+                    continue;
+                }
+
+                s = reader.GetInt32();
+                isSFound = true;
+
+                if (isOpFound && isDFound && isTFound)
+                    return;
+            }
+            
+            // Type
+            if (isTFound == false && reader.ValueTextEquals("t"))
+            {
+                // 값으로 이동
+                reader.Read();
+
+                if (reader.TokenType == JsonTokenType.Null)
+                {
+                    s = default;
+                    isSFound = true;
+
+                    t = default;
+                    isTFound = true;
+
+                    if (isOpFound && isDFound) 
+                        return;
+                    
+                    continue;
+                }
+
+                t = reader.ValueSpan;
+
+                if (isOpFound && isDFound && isSFound)
+                    return;
+
+                isTFound = true;
+            }
+        }
+    }
+    
+    void HandleEvent(byte[] buffer)
     {
         // 수신된 데이터 처리
-        string prettyJsonString = JsonUtility.ToPrettyJsonString(jsonString);
-        JsonElement payload = JsonSerializer.Deserialize<JsonElement>(jsonString);
+        GatewayOpcode operationCode;    // operation code
+        ReadOnlySpan<byte> data; // 데이터
+        int sequence;            // 시퀀스 번호 (Dispatch만)
+        ReadOnlySpan<byte> type; // 이벤트 타입 (Dispatch만)
 
-        // opcode 따라서 처리
-        GatewayOpcode operationCode = (GatewayOpcode)payload.GetProperty("op").GetInt32();
-        Console.WriteLine($"[ 로그 ] 수신: {operationCode} \n{prettyJsonString}");
+        ReadGatewayPayload(buffer, out operationCode, out data, out sequence, out type);
 
+        // operationCode 따라서 처리
         switch (operationCode)
         {
             // 0
-            case GatewayOpcode.Dispatch: {
-                await HandleDispatch(payload, cancellationToken); 
+            case GatewayOpcode.Dispatch: 
+            {
+                _lastSequence = sequence;
+
+                // 등록되지 않은 이벤트는 건너뛰기
+                if (dispatchEventDictionary.TryGetValue(type, out DispatchEventGroup? eventGroup) == false) {
+                    break;
+                }
+
+                eventGroup.Execute(this, data);
+
                 break; 
             }
             // 7
             case GatewayOpcode.Reconnect: {
-                await Reconnect();
+                Task.Run(Reconnect);
                 break;
             }
             // 8
-            case GatewayOpcode.InvalidSession: {
-                // 세션이 무효화됨 → Identify 또는 Resume 수행
-                if (payload.FindBoolean("d"))
+            case GatewayOpcode.InvalidSession: 
+            {
+                Utf8JsonReader reader = new Utf8JsonReader(data);
+                reader.Read();
+                if (reader.TokenType == JsonTokenType.True)
                 {
-                    await Disconnect();
-
-                    await SendIdentifyPayLoad();
+                    Task.Run(Reconnect);
                 }
                 else
                 {
 
-                } break;
+                }
+                break;
             }
             // 10
-            case GatewayOpcode.Hello: {
-                JsonElement dataProperty = payload.GetProperty("d");
-                int interval = dataProperty.GetProperty("heartbeat_interval").GetInt32();
+            case GatewayOpcode.Hello: 
+            {
+                int heartbeatInterval = -1;
+                Utf8JsonReader reader = new Utf8JsonReader(data);
+                while (reader.Read())
+                {
+                    if (reader.CurrentDepth != 1) continue;
 
-                // Identify는 Hello 이후에 반드시 보내야 함
-                
-                _ = Task.Run(async () => {
-                    await Task.Delay(100); 
-                    await SendIdentifyPayLoad();
-                });
+                    if (reader.TokenType != JsonTokenType.PropertyName) continue;
+                    if (reader.ValueTextEquals("heartbeat_interval"))
+                    {
+                        reader.Read();
+                        heartbeatInterval = reader.GetInt32();
+                        break;
+                    }
+                }
+                if (heartbeatInterval == -1) {
+                    Console.WriteLine("[ 오류 ] Heartbeat Interval을 찾을 수 없습니다.");
+                    return;
+                }
 
-                StartHeartbeatLoop(interval); 
+                // 하트비트 루프 시작
+                StartHeartbeatLoop(heartbeatInterval); 
+
+                // Identify 페이로드 전송
+                _ = Task.Run(SendIdentifyPayLoad);
+
                 break;
             }
             // 11
@@ -334,54 +499,16 @@ public class DiscordGatewayClient
         }
     }
 
-    async Task HandleDispatch(JsonElement payload, CancellationToken cancellationToken)
-    {
-        // 시퀀스 번호 추출
-        JsonElement sequenceProperty;
-        if (payload.TryGetProperty("s", out sequenceProperty) 
-            && sequenceProperty.ValueKind != JsonValueKind.Null)
-        {
-            _lastSequence = sequenceProperty.GetInt32();
-        }
-
-        JsonElement eventTypeProperty;
-        if (payload.TryGetProperty("t", out eventTypeProperty) 
-            && eventTypeProperty.ValueKind == JsonValueKind.String)
-        {
-            string? eventType = eventTypeProperty.GetString();
-            if (eventType == null) {
-                Console.WriteLine("Event type is null");
-                return;
-            }
-
-            int eventIndex;
-            DispatchEventGroup dispatchEventGroup;
-            if (dispatchEventIndexDictionary.TryGetValue(eventType, out eventIndex)) 
-            {
-                dispatchEventGroup = dispatchEventGroupList[eventIndex];
-            }
-            else
-            {
-                dispatchEventGroup = new DispatchEventGroup();
-                dispatchEventIndexDictionary.Add(eventType, dispatchEventGroupList.Count);
-                dispatchEventGroupList.Add(dispatchEventGroup);
-            }
-            JsonElement data = payload.GetProperty("d");
-            await dispatchEventGroup.Execute(this, data);
-        }
-    }
-    
-    void HandleHeartbeatAck(JsonElement payload)
-    {
-        
-    }
-
     #endregion
 
     #endregion
 
 
     #region 도구
+
+    #region DispatchEvent
+
+    #endregion
 
     async Task StopWebSocket()
     {

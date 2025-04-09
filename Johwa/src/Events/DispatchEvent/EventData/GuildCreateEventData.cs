@@ -1,26 +1,105 @@
 using System.Text.Json;
+using Johwa.Common.Json.Reader;
 using Johwa.Common.JsonSource;
 using Johwa.Resources.Channel;
 using Johwa.Resources.Guild;
 using Johwa.Resources.Voice;
-using Johwa.Utility.Json;
 
 namespace Johwa.Event.DispatchEvents;
 
-public struct GuildCreateEventData
+public ref struct GuildCreateEventData
 {
-    public readonly JsonElement jsonElement;
-
-    public GuildCreateEventData(JsonElement jsonElement)
+    public GuildCreateEventData(ReadOnlySpan<byte> data)
     {
-        this.jsonElement = jsonElement;
+        Utf8JsonReader reader = new Utf8JsonReader(data);
+        
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.PropertyName)
+            {
+                string? propName = reader.GetString();
+                if (propName == null) continue;
+
+                reader.Read(); 
+
+                switch (reader.TokenType)
+                {
+                    case JsonTokenType.StartObject:
+                        data = new JsonSourceObject(reader.ReadSpan());
+                        break;
+                    case JsonTokenType.StartArray:
+                        data = new JsonSourceArray(reader.ReadSpan());
+                        break;
+                    case JsonTokenType.String:
+                    {
+                        switch (propName)
+                        {
+                            case "joined_at":
+                                joinedAt = new DateTimeReader(reader.ValueSpan);
+                                break;
+                            default:
+                                throw new NotSupportedException($"Unsupported property name: {propName}");
+                        }
+                        break;
+                    }
+                    case JsonTokenType.Number:
+                    {
+                        break;
+                    }
+                    case JsonTokenType.True:
+                    {
+                        switch (propName)
+                        {
+                            case "large":
+                                isLarge = true;
+                                break;
+                            case "unavailable":
+                                isUnavailable = true;
+                                break;
+                            default:
+                                throw new NotSupportedException($"Unsupported property name: {propName}");
+                        }
+                        break;
+                    }
+                    case JsonTokenType.False:
+                    {
+                        switch (propName)
+                        {
+                            case "large":
+                                isLarge = false;
+                                break;
+                            case "unavailable":
+                                isUnavailable = false;
+                                break;
+                            default:
+                                throw new NotSupportedException($"Unsupported property name: {propName}");
+                        }
+                        break;
+                    }
+                    default:
+                        throw new NotSupportedException($"Unsupported token type: {reader.TokenType}");
+                }
+                if (propName == "joined_at")
+                {
+                    joinedAt = new DateTimeReader(reader.ReadSpan());
+                }
+                else if (propName == "large")
+                {
+                    data.SetProperty("large", reader.ReadBoolean());
+                }
+                else if (propName == "unavailable")
+                {
+                    data.SetProperty("unavailable", reader.ReadBoolean());
+                }
+            }
+        }
     }
 
     public GuildObject? Guild{ get {
         if (IsUnavailable) {
             return null;
         }
-        return new GuildObject(jsonElement);
+        return new GuildObject(data);
     } }
 
     /// <summary>
@@ -28,24 +107,21 @@ public struct GuildCreateEventData
     /// 봇이 서버에 가입한 시간 <br/>
     /// When this guild was joined at
     /// </summary>
-    public DateTime JoinedAt 
-        => jsonElement.GetProperty("joined_at").GetDateTime();
+    public DateTimeReader joinedAt;
 
     /// <summary>
     /// [ large ] <br/>
     /// 길드가 "대규모"인지 여부 <br/>
     /// true if this is considered a large guild
     /// </summary>
-    public bool IsLarge 
-        => jsonElement.GetProperty("large").GetBoolean();
+    public bool isLarge;
 
     /// <summary>
     /// [ unavailable? ] <br/>
     /// 길드가 사용 불가능한 상태인지 여부 <br/>
     /// true if this guild is unavailable due to an outage
     /// </summary>
-    public bool IsUnavailable 
-        => jsonElement.FindBooleanOrFalse("unavailable");
+    public bool isUnavailable;
 
     /// <summary>
     /// [ member_count ] <br/>
@@ -53,7 +129,7 @@ public struct GuildCreateEventData
     /// Total number of members in this guild
     /// </summary>
     public int MemberCount 
-        => jsonElement.GetProperty("member_count").GetInt32();
+        => data.GetProperty("member_count").GetInt32();
 
     /// <summary>
     /// [ voice_states ] <br/>
@@ -61,7 +137,7 @@ public struct GuildCreateEventData
     /// States of members currently in voice channels
     /// </summary>
     public JsonSourceArraySource<VoiceStateObject> VoiceStates
-        => jsonElement.FindJsonSourceArraySource<VoiceStateObject>("voice_states");
+        => data.FindJsonSourceArraySource<VoiceStateObject>("voice_states");
 
     /// <summary>
     /// [ members ] <br/>
@@ -69,7 +145,7 @@ public struct GuildCreateEventData
     /// Users in the guild
     /// </summary>
     public JsonSourceArraySource<GuildMemberObject> Members 
-        => jsonElement.FindJsonSourceArraySource<GuildMemberObject>("members");
+        => data.FindJsonSourceArraySource<GuildMemberObject>("members");
 
     /// <summary>
     /// [ channels ] <br/>
@@ -77,7 +153,7 @@ public struct GuildCreateEventData
     /// Channels in the guild
     /// </summary>
     public JsonSourceArraySource<ChannelObject> Channels
-        => jsonElement.FindJsonSourceArraySource<ChannelObject>("channels");
+        => data.FindJsonSourceArraySource<ChannelObject>("channels");
 
     /// <summary>
     /// [ threads ] <br/>
@@ -85,7 +161,7 @@ public struct GuildCreateEventData
     /// All active threads in the guild the current user can view
     /// </summary>
     public JsonSourceArraySource<ChannelObject> Threads 
-        => jsonElement.FindJsonSourceArraySource<ChannelObject>("threads");
+        => data.FindJsonSourceArraySource<ChannelObject>("threads");
     
     /// <summary>
     /// [ presences ] <br/>

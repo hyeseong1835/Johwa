@@ -14,7 +14,7 @@ public class DispatchEventGroup
     {
         this.events = events;
     }
-    public async Task Execute(DiscordGatewayClient client, JsonElement data)
+    public void Execute(DiscordGatewayClient client, ReadOnlySpan<byte> data)
     {
         for (int i = 0; i < events.Count; i++)
         {
