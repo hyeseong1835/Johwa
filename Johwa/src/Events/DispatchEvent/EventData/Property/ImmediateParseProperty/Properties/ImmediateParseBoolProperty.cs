@@ -1,15 +1,19 @@
+using System.Reflection;
+using System.Text.Json;
+
 namespace Johwa.Event.Data;
 
-public class ImmediateParseBoolPropertyAttribute : ImmediateParsePropertyAttribute
+public class ImmediateParseBoolAttribute : ImmediateParsePropertyAttribute
 {
-    public DeferredParsePropertyAttribute(string name, bool isOptional = false) : base(name, isOptional) { }
+    public ImmediateParseBoolAttribute(string name, bool isOptional = false) : base(name, isOptional) { }
 
-    public override EventPropertyMetadata CreateMetadata(EventDataDocumentMetadata eventDataMetadata, FieldInfo fieldInfo, string name, bool isOptional)
+    public override EventDataMetadata CreateMetadata(FieldInfo fieldInfo, string name, bool isOptional)
     {
-        return new DeferredParsePropertyMetaData(eventDataMetadata, fieldInfo, name, isOptional);
+        return new ImmediateParsePropertyMetadata(this, fieldInfo, name, isOptional);
     }
-    public void Set(EventDataDocument eventData, bool value)
+    public override object? Parse(IEventData container)
     {
-        eventData.SetBool(name, value);
+        Utf8JsonReader reader = new Utf8JsonReader(container.GetData().Span);
+        return reader.GetBoolean();
     }
 }

@@ -4,11 +4,11 @@ namespace Johwa.Event.Data;
 
 public class DeferredParseDateTimeProperty : DeferredParseValueProperty<DateTime>
 {
-    public DeferredParseDateTimeProperty(EventPropertyMetadata metadata, EventDataDocument eventData, int startIndex, int length)
-        : base(metadata, eventData, startIndex, length) { }
-    protected override DateTime Parse(EventDataDocument eventData)
+    public DeferredParseDateTimeProperty(
+        EventData data) : base(data) { }
+    protected override DateTime Parse()
     {
-        Utf8JsonReader reader = new Utf8JsonReader(eventData.Data);
+        Utf8JsonReader reader = new Utf8JsonReader(data);
 
         return reader.GetDateTime();
     }

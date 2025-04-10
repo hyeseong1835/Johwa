@@ -14,7 +14,7 @@ public abstract class GuildCreateEventData : EventDataDocument
     [DefferedParseProperty("id")]
     public DeferredParseSnowflakeProperty guildId;
 
-    [ImmediateParseBoolProperty("unavailable")]
+    [ImmediateParseBool("unavailable")]
     public bool isAvailable;
 
     #endregion
@@ -36,14 +36,12 @@ public class AvailableGuildCreateEventData : EventDataDocument
     #region 프로퍼티
     #nullable disable
 
-    
-
     /// <summary>
     /// [ joined_at (ISO8601 timestamp) ] <br/>
     /// 봇이 서버에 가입한 시간 <br/>
     /// When this guild was joined at
     /// </summary>
-    [DeferredParseValueProperty("joined_at")]
+    [DeferredParseValue("joined_at")]
     public DeferredParseDateTimeProperty joinedAt;
 
     /// <summary>
@@ -51,7 +49,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
     /// 길드가 "대규모"인지 여부 <br/>
     /// true if this is considered a large guild
     /// </summary>
-    [ImmediateParseBoolProperty("large")]
+    [ImmediateParseBool("large")]
     public bool isLarge;
 
     /// <summary>
@@ -59,7 +57,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
     /// 길드가 사용 불가능한 상태인지 여부 <br/>
     /// true if this guild is unavailable due to an outage
     /// </summary>
-    [ImmediateParseBoolProperty("unavailable")]
+    [ImmediateParseBool("unavailable")]
     public bool isUnavailable;
 
     /// <summary>

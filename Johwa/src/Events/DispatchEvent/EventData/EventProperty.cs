@@ -3,52 +3,52 @@ using System.Reflection;
 namespace Johwa.Event.Data;
 
 [AttributeUsage(AttributeTargets.Field, Inherited = true)]
-public abstract class EventDataPropertyAttribute : Attribute
+public abstract class EventDataAttribute : Attribute
 {
     public readonly string name;
     public readonly bool isOptional;
 
-    public EventDataPropertyAttribute(string name, bool isOptional = false)
+    public EventDataAttribute(string name, bool isOptional = false)
     {
         this.name = name;
         this.isOptional = isOptional;
     }
-    public abstract EventPropertyMetadata CreateMetadata(
-        EventDataDocumentMetadata eventDataMetadata, FieldInfo fieldInfo, string name, bool isOptional);
+    public abstract EventDataMetadata CreateMetadata(FieldInfo fieldInfo);
 }
 
-public abstract class EventPropertyMetadata
+public abstract class EventDataMetadata
 {
-    public readonly EventDataDocumentMetadata eventDataMetadata;
-    public readonly FieldInfo fieldInfo;
-    public readonly string name;
-    public readonly bool isOptional;
+    public abstract EventDataAttribute Attribute { get; }
 
-    public EventPropertyMetadata(EventDataDocumentMetadata eventDataMetadata, FieldInfo fieldInfo, string name, bool isOptional)
+    public abstract void InitProperty(object obj, IEventData container);
+}
+
+public abstract class EventProperty : IEventData
+{
+    ReadOnlyMemory<byte> IEventData.Container => data.container;
+    int IEventData.StartIndex => data.startIndex;
+    int IEventData.Length => data.length;
+
+    public EventData data;
+
+    public EventProperty(EventData data)
     {
-        this.eventDataMetadata = eventDataMetadata;
-        this.fieldInfo = fieldInfo;
-        this.name = name;
-        this.isOptional = isOptional;
+        this.data = data;
     }
-}
 
-public static class EventProperty
-{
-    public static EventPropertyMetadata[] LoadMetadata(EventDataDocumentMetadata eventDataMetadata, Type type)
+    public static EventDataMetadata[] LoadMetadata(Type type)
     {
         FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-        List<EventPropertyMetadata> propertyMetadataList = new List<EventPropertyMetadata>(fields.Length);
+        List<EventDataMetadata> propertyMetadataList = new List<EventDataMetadata>(fields.Length);
 
         for (int i = 0; i < fields.Length; i++)
         {
             FieldInfo field = fields[i];
-            EventPropertyGroupAttribute? attribute = field.GetCustomAttribute<EventPropertyGroupAttribute>();
+            EventDataAttribute? attribute = field.GetCustomAttribute<EventDataAttribute>();
             if (attribute == null)
                 continue;
-
             
-            EventPropertyMetadata propertyMetadata = attribute.CreateMetadata(eventDataMetadata, field, attribute.name, attribute.isOptional);
+            EventDataMetadata propertyMetadata = attribute.CreateMetadata(field, attribute.name, attribute.isOptional);
             propertyMetadataList.Add(propertyMetadata);
         }
         return propertyMetadataList.ToArray();

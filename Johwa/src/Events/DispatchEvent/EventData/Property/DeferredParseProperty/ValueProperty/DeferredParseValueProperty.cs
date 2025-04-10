@@ -2,46 +2,46 @@ using System.Reflection;
 
 namespace Johwa.Event.Data;
 
-public class DeferredParseValuePropertyMetaData : EventPropertyMetadata
+public class DeferredParseValuePropertyMetaData : DeferredParseMetaData
 {
-    public DeferredParseValuePropertyMetaData(EventDataDocumentMetadata eventDataMetadata, FieldInfo fieldInfo, string name, bool isOptional) 
-        : base(eventDataMetadata, fieldInfo, name, isOptional) { }
-}
-public class DeferredParseValuePropertyAttribute : EventDataPropertyAttribute
-{
-    public DeferredParseValuePropertyAttribute(string name, bool isOptional = false) : base(name, isOptional) { }
+    public override EventDataAttribute Attribute => attribute;
+    public DeferredParseValueAttribute attribute;
 
-    public override EventPropertyMetadata CreateMetadata(EventDataDocumentMetadata eventDataMetadata, FieldInfo fieldInfo, string name, bool isOptional)
+    public DeferredParseValuePropertyMetaData(DeferredParseValueAttribute attribute)
+    { 
+        this.attribute = attribute;
+    }
+    public override void InitProperty(object obj, IEventData container) { }
+}
+
+public class DeferredParseValueAttribute : DeferredParseAttribute
+{
+    public DeferredParseValueAttribute(
+        string name, bool isOptional = false) : base(name, isOptional) { }
+        
+    public override EventDataMetadata CreateMetadata(FieldInfo fieldInfo)
     {
-        return new DeferredParseValuePropertyMetaData(eventDataMetadata, fieldInfo, name, isOptional);
+        return new DeferredParseValuePropertyMetaData(this);
     }
 }
 
-public abstract class DeferredParseValueProperty<T> : EventDataObjectUnit
+public abstract class DeferredParseValueProperty<T> : DeferredParseProperty
 {
-    public readonly EventPropertyMetadata metadata;
-
     protected T? value = default;
     public bool isParsed = false;
 
-    public DeferredParseValueProperty(EventPropertyMetadata metadata, EventDataDocument eventData, int startIndex, int length)
-        : base(eventData, startIndex, length)
+    public DeferredParseValueProperty(EventData data) : base(data) 
     {
-        this.metadata = metadata;
+
     }
 
     public T? Get()
     {
         if (isParsed == false) {
-            value = Parse(eventData);
+            value = Parse();
         }
 
         return value;
     }
-    protected abstract T? Parse(EventDataDocument eventData);
-
-    public static implicit operator T(DeferredParseValueProperty<T> property)
-    {
-        return property.Get()!;
-    }
+    protected abstract T? Parse();
 }

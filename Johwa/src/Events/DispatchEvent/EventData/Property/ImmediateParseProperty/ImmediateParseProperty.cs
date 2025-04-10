@@ -2,17 +2,36 @@ using System.Reflection;
 
 namespace Johwa.Event.Data;
 
-public class ImmediateParsePropertyMetadata : EventPropertyMetadata
+public class ImmediateParsePropertyMetadata : EventDataMetadata
 {
-    public ImmediateParsePropertyMetadata(EventDataDocumentMetadata eventDataMetadata, FieldInfo fieldInfo, string name, bool isOptional) 
-        : base(eventDataMetadata, fieldInfo, name, isOptional) { }
-}
-public abstract class ImmediateParsePropertyAttribute : EventDataPropertyAttribute
-{
-    public ImmediateParsePropertyAttribute(string name, bool isOptional = false) : base(name, isOptional) { }
+    public override EventDataAttribute Attribute => attribute;
+    public ImmediateParsePropertyAttribute attribute;
+    public FieldInfo fieldInfo;
 
-    public override EventPropertyMetadata CreateMetadata(EventDataDocumentMetadata eventDataMetadata, FieldInfo fieldInfo, string name, bool isOptional)
+    public ImmediateParsePropertyMetadata(ImmediateParsePropertyAttribute attribute)
     {
-        return new DeferredParseValuePropertyMetaData(eventDataMetadata, fieldInfo, name, isOptional);
+        this.attribute = attribute;
+        fieldInfo = attribute.fieldInfo;
     }
+
+    public override void InitProperty(object obj, IEventData container)
+    {
+        fieldInfo.SetValue(obj, attribute.Parse(container));
+    }
+}
+public abstract class ImmediateParsePropertyAttribute : EventDataAttribute
+{
+    public FieldInfo fieldInfo;
+
+    public ImmediateParsePropertyAttribute(FieldInfo fieldInfo, 
+        string name, bool isOptional = false) : base(name, isOptional) 
+    {
+        this.fieldInfo = fieldInfo; 
+    }
+
+    public override EventDataMetadata CreateMetadata(FieldInfo fieldInfo)
+    {
+        return new ImmediateParsePropertyMetadata(this);
+    }
+    public abstract object? Parse(IEventData container);
 }
