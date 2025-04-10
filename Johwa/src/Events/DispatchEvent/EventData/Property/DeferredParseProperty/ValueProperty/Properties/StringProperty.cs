@@ -4,15 +4,15 @@ namespace Johwa.Event.Data;
 
 public class StringProperty : DeferredParseValueProperty<string>
 {
-    public StringProperty(EventDataMetadata metadata, EventDataDocument eventData, int startIndex, int length)
-        : base(metadata, eventData, startIndex, length) { }
+    public StringProperty(EventData data)
+        : base(data) { }
 
     protected override string Parse()
     {
-        Utf8JsonReader reader = new Utf8JsonReader(Data);
+        Utf8JsonReader reader = new Utf8JsonReader(data);
         string? result = reader.GetString();
         if (result == null) {
-            throw new JsonException($"Failed to parse string property '{metadata.name}'.");
+            throw new JsonException($"Failed to parse string property '{data}'.");
         }
         return result;
     }

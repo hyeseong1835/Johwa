@@ -7,9 +7,9 @@ public class ImmediateParseBoolAttribute : ImmediateParsePropertyAttribute
 {
     public ImmediateParseBoolAttribute(string name, bool isOptional = false) : base(name, isOptional) { }
 
-    public override EventDataMetadata CreateMetadata(FieldInfo fieldInfo, string name, bool isOptional)
+    public override EventDataMetadata CreateMetadata(FieldInfo fieldInfo)
     {
-        return new ImmediateParsePropertyMetadata(this, fieldInfo, name, isOptional);
+        return new ImmediateParsePropertyMetadata(this, fieldInfo);
     }
     public override object? Parse(IEventData container)
     {

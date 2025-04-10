@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
@@ -11,14 +12,14 @@ public class DeferredParseValuePropertyMetaData : DeferredParseMetaData
     { 
         this.attribute = attribute;
     }
-    public override void InitProperty(object obj, IEventData container) { }
+    public override void InitProperty(object obj, IEventData container, JsonTokenType tokenType) { }
 }
 
 public class DeferredParseValueAttribute : DeferredParseAttribute
 {
     public DeferredParseValueAttribute(
         string name, bool isOptional = false) : base(name, isOptional) { }
-        
+
     public override EventDataMetadata CreateMetadata(FieldInfo fieldInfo)
     {
         return new DeferredParseValuePropertyMetaData(this);

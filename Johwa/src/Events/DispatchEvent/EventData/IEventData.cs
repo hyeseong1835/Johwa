@@ -22,6 +22,18 @@ public struct EventData : IEventData
     public int startIndex;
     public int length;
 
+    public EventData(IEventData data)
+    {
+        this.container = data.Container;
+        this.startIndex = data.StartIndex;
+        this.length = data.Length;
+    }
+    public EventData(IEventData data, int startIndex, int length)
+    {
+        this.container = data.GetData();
+        this.startIndex = startIndex;
+        this.length = length;
+    }
     public EventData(ReadOnlyMemory<byte> data, int startIndex, int length)
     {
         this.container = data;
@@ -35,10 +47,14 @@ public struct EventData : IEventData
     }
     public static implicit operator ReadOnlyMemory<byte>(EventData data)
     {
-        return data.container.Slice(data.startIndex, data.length);
+        return data.GetData();
     }
     public static implicit operator ReadOnlySequence<byte>(EventData data)
     {
-        return new ReadOnlySequence<byte>(data.container.Slice(data.startIndex, data.length));
+        return new ReadOnlySequence<byte>(data.GetData());
+    }
+    public ReadOnlyMemory<byte> GetData()
+    {
+        return container.Slice(startIndex, length);
     }
 }

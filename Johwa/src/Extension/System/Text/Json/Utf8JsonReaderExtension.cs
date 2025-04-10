@@ -3,6 +3,23 @@ using System.Text.Json;
 namespace Johwa.Extension.System.Text.Json;
 public static class Utf8JsonReaderExtension
 {
+    public static bool TryFindPropertyName(this ref Utf8JsonReader reader, string propertyName)
+    {
+        int startDepth = reader.CurrentDepth;
+
+        while (reader.Read())
+        {
+            if (reader.CurrentDepth < startDepth)
+                return false; // 영역을 벗어남
+            
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                continue; // 이름만 필터링
+
+            if (reader.ValueTextEquals(propertyName))
+                return true; // 찾음
+        }
+        return false; // 끝까지 읽었지만 찾지 못함
+    }
     public static bool TryReadObject(this ref Utf8JsonReader reader, ReadOnlySpan<byte> originalJson, out ReadOnlySpan<byte> result)
     {
         if (reader.TokenType != JsonTokenType.StartObject){
