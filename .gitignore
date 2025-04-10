@@ -11,3 +11,4 @@
 # 예외: TestProject 폴더 및 그 안의 모든 파일 포함
 !/TestProject
 !/TestProject/**
+.fake

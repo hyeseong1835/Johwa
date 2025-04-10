@@ -18,5 +18,7 @@ public abstract class DispatchEvent
             this.eventName = eventType.ToString();
         }
     }
+
+    public bool isEnabled;
     public abstract void Handle(DiscordGatewayClient client, ReadOnlySpan<byte> data);
 }

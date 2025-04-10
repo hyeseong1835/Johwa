@@ -15,7 +15,7 @@ public class DiscordGatewayClient
     static readonly Uri gatewayUri = new Uri(GatewayUrl);
 
     // 디스패치 이벤트
-    DispatchEventGroupDictionary dispatchEventDictionary = new();
+    public readonly DispatchEventGroupDictionary dispatchEventDictionary = new();
 
     #endregion
 
@@ -423,7 +423,7 @@ public class DiscordGatewayClient
                     break;
                 }
 
-                eventGroup.Execute(this, data);
+                eventGroup.OnHandled(this, data);
 
                 break; 
             }
