@@ -11,9 +11,14 @@ public class ImmediateParseBoolAttribute : ImmediateParsePropertyAttribute
     {
         return new ImmediateParsePropertyMetadata(this, fieldInfo);
     }
-    public override object? Parse(IEventData container)
+    public override object? Parse(ReadOnlyMemory<byte> data, JsonTokenType tokenType)
     {
-        Utf8JsonReader reader = new Utf8JsonReader(container.GetData().Span);
-        return reader.GetBoolean();
+        if (tokenType == JsonTokenType.True) {
+            return true;
+        } 
+        else if (tokenType == JsonTokenType.False) {
+            return false;
+        } 
+        else throw new JsonException($"Invalid token type for boolean: {tokenType}");
     }
 }

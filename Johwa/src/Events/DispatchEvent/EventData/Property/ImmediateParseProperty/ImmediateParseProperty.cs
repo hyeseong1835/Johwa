@@ -7,17 +7,16 @@ public class ImmediateParsePropertyMetadata : EventDataMetadata
 {
     public override EventDataAttribute Attribute => attribute;
     public ImmediateParsePropertyAttribute attribute;
-    public FieldInfo fieldInfo;
 
-    public ImmediateParsePropertyMetadata(ImmediateParsePropertyAttribute attribute, FieldInfo fieldInfo)
+    public ImmediateParsePropertyMetadata(ImmediateParsePropertyAttribute attribute, 
+        FieldInfo fieldInfo) : base(fieldInfo)
     {
         this.attribute = attribute;
-        this.fieldInfo = fieldInfo;
     }
 
-    public override void InitProperty(object obj, IEventData container, JsonTokenType tokenType)
+    public override void InitProperty(object obj, ReadOnlyMemory<byte> data, JsonTokenType tokenType)
     {
-        fieldInfo.SetValue(obj, attribute.Parse(container));
+        fieldInfo.SetValue(obj, attribute.Parse(data, tokenType));
     }
 }
 public abstract class ImmediateParsePropertyAttribute : EventDataAttribute
@@ -29,5 +28,5 @@ public abstract class ImmediateParsePropertyAttribute : EventDataAttribute
     {
         return new ImmediateParsePropertyMetadata(this, fieldInfo);
     }
-    public abstract object? Parse(IEventData container);
+    public abstract object? Parse(ReadOnlyMemory<byte> data, JsonTokenType tokenType);
 }

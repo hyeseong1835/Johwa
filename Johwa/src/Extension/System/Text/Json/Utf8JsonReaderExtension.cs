@@ -48,4 +48,15 @@ public static class Utf8JsonReaderExtension
         result = default;
         return false;
     }
+    
+    public static ReadOnlyMemory<byte> ReadAndSliceToken(this ref Utf8JsonReader reader, ReadOnlyMemory<byte> originalJson)
+    {
+        int start = (int)reader.TokenStartIndex;
+
+        reader.Skip(); // 객체 Skip 
+
+        int end = (int)reader.BytesConsumed;
+
+        return originalJson.Slice(start, end - start);
+    }
 }

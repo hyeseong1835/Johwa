@@ -30,7 +30,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
         if (metadata == null)
             metadata = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
 
-        metadata.SetProperty(this);
+        InitProperty(metadata);
     }
 
     #region 프로퍼티

@@ -1,32 +1,30 @@
 namespace Johwa.Common.Collection;
 
 public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
-    where TValue : ReadOnlyValueSet<TValue, TIdValue>.IIdentifier
 {
-    public interface IIdentifier
-    {
-        public bool IsMatch(TIdValue compareValue);
-    }
     public struct LinkedListNode
     {
-        public TValue value;
+        public int valueIndex;
         public int nextIndex;
 
-        public LinkedListNode(TValue value, int nextIndex)
+        public LinkedListNode(int valueIndex, int nextIndex)
         {
-            this.value = value;
+            this.valueIndex = valueIndex;
             this.nextIndex = nextIndex;
         }
     }
     ref struct LinkedList
     {
         public readonly Span<LinkedListNode> nodes;
+        public readonly ReadOnlyMemory<TValue> values;
+
         public int headIndex;
         public ref LinkedListNode HeadNode => ref nodes[headIndex];
 
-        public LinkedList(Span<LinkedListNode> nodes, int headIndex)
+        public LinkedList(Span<LinkedListNode> nodes, ReadOnlyMemory<TValue> values, int headIndex)
         {
             this.nodes = nodes;
+            this.values = values;
             this.headIndex = headIndex;
         }
         public int SetHeadIndex(int headIndex)
@@ -38,27 +36,28 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
     }
     
     readonly LinkedList list;
+    readonly Func<TValue, TIdValue, bool> isMatchFunc;
 
-    ReadOnlyValueSet(Span<TValue> collection, Span<LinkedListNode> nodeBuffer)
+    public ReadOnlyValueSet(ReadOnlyMemory<TValue> collection, Span<LinkedListNode> nodeBuffer, 
+        Func<TValue, TIdValue, bool> isMatchFunc)
     {
         for (int i = 0; i < collection.Length; i++)
         {
-            ref TValue value = ref collection[i];
-
             if (i < collection.Length - 1)
             {
-                nodeBuffer[i] = new LinkedListNode(value, i + 1);
+                nodeBuffer[i] = new LinkedListNode(i, i + 1);
             }
             else if (i == collection.Length - 1)
             {
-                nodeBuffer[i] = new LinkedListNode(value, -1);
+                nodeBuffer[i] = new LinkedListNode(i, -1);
             }
             else 
             {
-                throw new ArgumentOutOfRangeException(nameof(collection), "버퍼가 부족합니다.");
+                throw new ArgumentOutOfRangeException("버퍼가 부족합니다.");
             }
         }
-        list = new LinkedList(nodeBuffer, 0);
+        list = new LinkedList(nodeBuffer, collection, 0);
+        this.isMatchFunc = isMatchFunc;
     }
     
     public bool TryGetValue(TIdValue id, out TValue? value)
@@ -67,9 +66,10 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
         while (index != -1)
         {
             ref LinkedListNode node = ref list.nodes[index];
-            if (node.value.IsMatch(id))
+            value = list.values.Span[node.valueIndex];
+
+            if (isMatchFunc.Invoke(value, id))
             {
-                value = node.value;
                 return true;
             }
             index = node.nextIndex;
@@ -86,8 +86,11 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
         }
 
         ref LinkedListNode prevNode = ref list.HeadNode;
-        if (prevNode.value.IsMatch(id)) {
-            value = prevNode.value;
+        ReadOnlySpan<TValue> valueSpan = list.values.Span;
+        value = valueSpan[prevNode.valueIndex];
+        
+        if (isMatchFunc.Invoke(value, id)) {
+            value = valueSpan[prevNode.valueIndex];
             list.SetHeadIndex(prevNode.nextIndex);
             return true;
         }
@@ -96,11 +99,11 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
         while (index != -1)
         {
             ref LinkedListNode node = ref list.nodes[index];
-            if (node.value.IsMatch(id))
+            value = valueSpan[node.valueIndex];
+            if (isMatchFunc.Invoke(value, id))
             {
-                value = node.value;
                 node.nextIndex = -1;
-                
+
                 prevNode.nextIndex = node.nextIndex;
                 return true;
             }
@@ -108,5 +111,17 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
         }
         value = default;
         return false;
+    }
+    public IEnumerable<TValue> GetEnumerable()
+    {
+        int index = list.headIndex;
+        ReadOnlySpan<TValue> valueSpan = list.values.Span;
+
+        while (index != -1)
+        {
+            LinkedListNode node = list.nodes[index];
+            yield return valueSpan[node.valueIndex];
+            index = node.nextIndex;
+        }
     }
 }
