@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using Johwa.Common;
 
 namespace Johwa.Event.Data;
 
@@ -17,8 +18,10 @@ public abstract class EventDataAttribute : Attribute
     public abstract EventDataMetadata CreateMetadata(FieldInfo fieldInfo);
 }
 
-public abstract class EventDataMetadata
+public abstract class EventDataMetadata : IHasKey<string>
 {
+    string IHasKey<string>.Key => Attribute.name;
+    
     public abstract EventDataAttribute Attribute { get; }
 
     public abstract void InitProperty(object obj, IEventData container, JsonTokenType tokenType);

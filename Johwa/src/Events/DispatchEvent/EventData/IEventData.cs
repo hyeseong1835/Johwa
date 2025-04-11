@@ -28,15 +28,15 @@ public struct EventData : IEventData
         this.startIndex = data.StartIndex;
         this.length = data.Length;
     }
-    public EventData(IEventData data, int startIndex, int length)
+    public EventData(IEventData container, int startIndex, int length)
     {
-        this.container = data.GetData();
+        this.container = container.GetData();
         this.startIndex = startIndex;
         this.length = length;
     }
-    public EventData(ReadOnlyMemory<byte> data, int startIndex, int length)
+    public EventData(ReadOnlyMemory<byte> container, int startIndex, int length)
     {
-        this.container = data;
+        this.container = container;
         this.startIndex = startIndex;
         this.length = length;
     }

@@ -11,7 +11,7 @@ public abstract class GuildCreateEventData : EventDataDocument
 
     #region 프로퍼티
 
-    [DefferedParseProperty("id")]
+    [DefferedParseValue("id")]
     public DeferredParseSnowflakeProperty guildId;
 
     [ImmediateParseBool("unavailable")]

@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Reflection;
 using System.Text.Json;
+using Johwa.Common.Collection;
 using Johwa.Extension.System.Text.Json;
 
 namespace Johwa.Event.Data;
@@ -20,7 +22,10 @@ public class DeferredParseObjectMetaData : DeferredParseMetaData
     }
     public override void InitProperty(object obj, IEventData data, JsonTokenType tokenType)
     {
-        if (tokenType == JsonTokenType.None)
+        if (tokenType == JsonTokenType.Null)
+            return;
+
+        if (tokenType != JsonTokenType.StartObject)
             throw new InvalidOperationException("오류");
         
         object? value = fieldInfo.GetValue(obj);
@@ -29,11 +34,34 @@ public class DeferredParseObjectMetaData : DeferredParseMetaData
             value = Activator.CreateInstance(fieldInfo.FieldType, [ new EventData(data) ])!;
             fieldInfo.SetValue(obj, value);
         }
+        
+
+        Utf8JsonReader reader = new Utf8JsonReader(new EventData(data));
+        
+        Span<ReadOnlyValueSet<int, EventDataMetadata>.LinkedListNode> nodeBuffer 
+            = ArrayPool<ReadOnlyValueSet<int, EventDataMetadata>.LinkedListNode>.Shared.Rent(propertyMetadataArray.Length);
+
+        ReadOnlyValueSet<int, EventDataMetadata> propertyMetadataDictionary 
+            = ReadOnlyValueSet<int, EventDataMetadata>.CreateWithIHasKey(new Span<EventDataMetadata>(propertyMetadataArray), nodeBuffer);
+
+        while (true)
+        {
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndObject)
+                    break;
+
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    string propertyName = reader.ValueSpan.Eq
+                }
+            }
+            if ()
+        }
 
         for (int i = 0; i < propertyMetadataArray.Length; i++)
         {
             EventDataMetadata propertyMetadata = propertyMetadataArray[i];
-            Utf8JsonReader reader = new Utf8JsonReader(new EventData(data));
 
             if (reader.TryFindPropertyName(propertyMetadata.Attribute.name))
             {
