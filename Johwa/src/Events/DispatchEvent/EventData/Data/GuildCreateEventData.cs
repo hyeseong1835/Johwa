@@ -10,18 +10,26 @@ public abstract class GuildCreateEventData : EventDataDocument
     public GuildCreateEventData(byte[] data) : base(data) { }
 
     #region 프로퍼티
+    #nullable disable
 
-    [DefferedParseValue("id")]
+    [DeferredParseValue("id")]
     public DeferredParseSnowflakeProperty guildId;
 
+    /// <summary>
+    /// [ unavailable? (boolean) ] <br/>
+    /// 길드가 사용 불가능한 상태인지 여부 <br/>
+    /// true if this guild is unavailable due to an outage
+    /// </summary>
     [ImmediateParseBool("unavailable")]
-    public bool isAvailable;
+    public bool isUnavailable;
 
+    #nullable enable
     #endregion
 }
 
 public class AvailableGuildCreateEventData : EventDataDocument
 {
+    public override EventDataDocumentMetadata Metadata => metadata?? throw new InvalidOperationException("메타데이터가 초기화되지 않았습니다.");
     public static EventDataDocumentMetadata? metadata;
 
     public AvailableGuildCreateEventData(byte[] data) : base(data) { }
@@ -30,7 +38,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
         if (metadata == null)
             metadata = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
 
-        InitProperty(metadata);
+        InitProperty();
     }
 
     #region 프로퍼티
@@ -52,13 +60,6 @@ public class AvailableGuildCreateEventData : EventDataDocument
     [ImmediateParseBool("large")]
     public bool isLarge;
 
-    /// <summary>
-    /// [ unavailable? (boolean) ] <br/>
-    /// 길드가 사용 불가능한 상태인지 여부 <br/>
-    /// true if this guild is unavailable due to an outage
-    /// </summary>
-    [ImmediateParseBool("unavailable")]
-    public bool isUnavailable;
 
     /// <summary>
     /// [ member_count (integer) ] <br/>
@@ -138,14 +139,12 @@ public class AvailableGuildCreateEventData : EventDataDocument
 
 public class UnavailableGuildCreateEventData : EventDataDocument
 {
-    public static EventDataDocumentMetadata? metadata;
+    public override EventDataDocumentMetadata Metadata => metadata;
+    public static EventDataDocumentMetadata metadata = new(typeof(UnavailableGuildCreateEventData));
 
     public UnavailableGuildCreateEventData(byte[] data) : base(data) { }
     public override void Init()
     {
-        if (metadata == null)
-            metadata = new EventDataDocumentMetadata(typeof(UnavailableGuildCreateEventData));
-
         metadata.SetProperty(this);
     }
 }

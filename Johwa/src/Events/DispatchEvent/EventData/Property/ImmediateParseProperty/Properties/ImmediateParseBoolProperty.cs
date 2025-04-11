@@ -16,9 +16,10 @@ public class ImmediateParseBoolAttribute : ImmediateParsePropertyAttribute
         if (tokenType == JsonTokenType.True) {
             return true;
         } 
-        else if (tokenType == JsonTokenType.False) {
+        if (tokenType == JsonTokenType.False) {
             return false;
         } 
-        else throw new JsonException($"Invalid token type for boolean: {tokenType}");
+        
+        throw new JsonException($"Invalid token type for boolean: {tokenType}");
     }
 }

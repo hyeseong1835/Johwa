@@ -20,6 +20,7 @@ public class EventDataDocumentMetadata
 
 public abstract class EventDataDocument : IDisposable
 {
+    public abstract EventDataDocumentMetadata Metadata { get; }
     byte[]? data;
     
     public EventDataDocument(byte[] data)
@@ -32,7 +33,7 @@ public abstract class EventDataDocument : IDisposable
     }
     public abstract void Init();
 
-    public void InitProperty(EventDataDocumentMetadata metadata)
+    public void InitProperty()
     {
         if (data == null)
             throw new InvalidOperationException("데이터를 참조할 수 없습니다.");
@@ -42,11 +43,11 @@ public abstract class EventDataDocument : IDisposable
         
         // 노드 버퍼 (스택)
         Span<ReadOnlyValueSet<EventDataMetadata, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
-            = stackalloc ReadOnlyValueSet<EventDataMetadata, ValueTuple<byte[], int>>.LinkedListNode[metadata.propertyMetadataArray.Length];
+            = stackalloc ReadOnlyValueSet<EventDataMetadata, ValueTuple<byte[], int>>.LinkedListNode[Metadata.propertyMetadataArray.Length];
 
         // 프로퍼티 메타데이터 탐색을 위한 세트 생성
         ReadOnlyValueSet<EventDataMetadata, ValueTuple<byte[], int>> propertyMetadataSet 
-            = new(new ReadOnlyMemory<EventDataMetadata>(metadata.propertyMetadataArray), nodeBuffer, IsMatchMetaData);
+            = new(new ReadOnlyMemory<EventDataMetadata>(Metadata.propertyMetadataArray), nodeBuffer, IsMatchMetaData);
 
         // 프로퍼티 이름 버퍼 대여
         byte[] propertyNameBuffer = ArrayPool<byte>.Shared.Rent(64);

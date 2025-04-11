@@ -9,8 +9,6 @@ public class DeferredParseDateTimeProperty : DeferredParseValueProperty<DateTime
         
     protected override DateTime Parse()
     {
-        Utf8JsonReader reader = new Utf8JsonReader(data.Span);
-
-        return reader.GetDateTime();
+        return DateTime.Parse(data.Span);
     }
 }
