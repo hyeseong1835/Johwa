@@ -9,6 +9,11 @@ public class DeferredParseDateTimeProperty : DeferredParseValueProperty<DateTime
         
     protected override DateTime Parse()
     {
-        return DateTime.Parse(data.Span);
+        Span<char> charSpan = stackalloc char[data.Length];
+        for (int i = 0; i < data.Length; i++)
+        {
+            charSpan[i] = (char)data.Span[i];
+        }
+        return DateTime.Parse(charSpan);
     }
 }

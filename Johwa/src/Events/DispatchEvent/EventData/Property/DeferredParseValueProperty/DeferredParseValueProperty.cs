@@ -3,9 +3,9 @@ using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
-public class DeferredParseValuePropertyMetaData : EventDataMetadata
+public class DeferredParseValuePropertyMetaData : EventPropertyTypeMetadata
 {
-    public override EventDataAttribute Attribute => attribute;
+    public override EventPropertyAttribute Attribute => attribute;
     public DeferredParseValueAttribute attribute;
 
     public DeferredParseValuePropertyMetaData(DeferredParseValueAttribute attribute,
@@ -16,18 +16,18 @@ public class DeferredParseValuePropertyMetaData : EventDataMetadata
     public override void InitProperty(object obj, ReadOnlyMemory<byte> data, JsonTokenType tokenType) { }
 }
 
-public class DeferredParseValueAttribute : EventDataAttribute
+public class DeferredParseValueAttribute : EventPropertyAttribute
 {
     public DeferredParseValueAttribute(
         string name, bool isOptional = false) : base(name, isOptional) { }
 
-    public override EventDataMetadata CreateMetadata(FieldInfo fieldInfo)
+    public override EventPropertyTypeMetadata CreateMetadata(FieldInfo fieldInfo)
     {
         return new DeferredParseValuePropertyMetaData(this, fieldInfo);
     }
 }
 
-public abstract class DeferredParseValueProperty<T> : EventProperty
+public abstract class DeferredParseValueProperty<T> : EventPropertyData
 {
     protected T? value = default;
     public bool isParsed = false;

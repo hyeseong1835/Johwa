@@ -1,11 +1,11 @@
-using System.Text.Json;
+using Johwa.Event.Data;
 
 namespace Johwa.Event.DispatchEvents;
 
 [DispatchEvent(DispatchEventType.GUILD_CREATE)]
 public class GuildCreateEvent : DispatchEvent
 {
-    public override void Handle(DiscordGatewayClient client, JsonElement data)
+    public override void Handle(DiscordGatewayClient client, ReadOnlySpan<byte> data)
     {
         GuildCreateEventData guildCreateEventData = new GuildCreateEventData(data);
 

@@ -36,10 +36,7 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
     }
     
     readonly LinkedList list;
-    readonly Func<TValue, TIdValue, bool> isMatchFunc;
-
-    public ReadOnlyValueSet(ReadOnlyMemory<TValue> collection, Span<LinkedListNode> nodeBuffer, 
-        Func<TValue, TIdValue, bool> isMatchFunc)
+    public ReadOnlyValueSet(ReadOnlyMemory<TValue> collection, Span<LinkedListNode> nodeBuffer)
     {
         for (int i = 0; i < collection.Length; i++)
         {
@@ -57,10 +54,9 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
             }
         }
         list = new LinkedList(nodeBuffer, collection, 0);
-        this.isMatchFunc = isMatchFunc;
     }
     
-    public bool TryGetValue(TIdValue id, out TValue? value)
+    public bool TryGetValue(TIdValue id, out TValue? value, Func<TValue, TIdValue, bool> idMatchFunc)
     {
         int index = list.headIndex;
         while (index != -1)
@@ -68,7 +64,7 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
             ref LinkedListNode node = ref list.nodes[index];
             value = list.values.Span[node.valueIndex];
 
-            if (isMatchFunc.Invoke(value, id))
+            if (idMatchFunc.Invoke(value, id))
             {
                 return true;
             }
@@ -77,7 +73,7 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
         value = default;
         return false;
     }
-    public bool TryGetExtractValue(TIdValue id, out TValue? value)
+    public bool TryExtractValue(TIdValue id, out TValue? value, Func<TValue, TIdValue, bool> idMatchFunc)
     {
         int index = list.headIndex;
         if (index == -1) {
@@ -89,7 +85,7 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
         ReadOnlySpan<TValue> valueSpan = list.values.Span;
         value = valueSpan[prevNode.valueIndex];
         
-        if (isMatchFunc.Invoke(value, id)) {
+        if (idMatchFunc.Invoke(value, id)) {
             value = valueSpan[prevNode.valueIndex];
             list.SetHeadIndex(prevNode.nextIndex);
             return true;
@@ -100,7 +96,7 @@ public readonly ref struct ReadOnlyValueSet<TValue, TIdValue>
         {
             ref LinkedListNode node = ref list.nodes[index];
             value = valueSpan[node.valueIndex];
-            if (isMatchFunc.Invoke(value, id))
+            if (idMatchFunc.Invoke(value, id))
             {
                 node.nextIndex = -1;
 

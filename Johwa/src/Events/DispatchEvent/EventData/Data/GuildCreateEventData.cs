@@ -1,8 +1,3 @@
-using Johwa.Common.JsonSource;
-using Johwa.Resources.Guild;
-using Johwa.Resources.Voice;
-using Johwa.Resources.Channel;
-
 namespace Johwa.Event.Data;
 
 public abstract class GuildCreateEventData : EventDataDocument
@@ -29,19 +24,23 @@ public abstract class GuildCreateEventData : EventDataDocument
 
 public class AvailableGuildCreateEventData : EventDataDocument
 {
-    public override EventDataDocumentMetadata Metadata => metadata?? throw new InvalidOperationException("메타데이터가 초기화되지 않았습니다.");
-    public static EventDataDocumentMetadata? metadata;
+    // Static
+    public static EventDataDocumentMetadata? metadataStatic;
 
-    public AvailableGuildCreateEventData(byte[] data) : base(data) { }
-    public override void Init()
+
+    #region Instance
+
+    // 재정의
+    protected override EventDataDocumentMetadata GetMetadata()
     {
-        if (metadata == null)
-            metadata = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
+        if (metadataStatic == null)
+            metadataStatic = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
 
-        InitProperty();
+        return metadataStatic;
     }
+    
 
-    #region 프로퍼티
+    #region 필드
     #nullable disable
 
     /// <summary>
@@ -60,46 +59,45 @@ public class AvailableGuildCreateEventData : EventDataDocument
     [ImmediateParseBool("large")]
     public bool isLarge;
 
-
     /// <summary>
     /// [ member_count (integer) ] <br/>
     /// 이 길드에 속한 총 멤버 수 <br/>
     /// Total number of members in this guild
     /// </summary>
-    public int MemberCount 
-        => data.GetProperty("member_count").GetInt32();
+    //public int MemberCount 
+    //    => data.GetProperty("member_count").GetInt32();
 
     /// <summary>
     /// [ voice_states ] <br/>
     /// 음성 채널에 있는 멤버들의 상태 목록 <br/>
     /// States of members currently in voice channels
     /// </summary>
-    public JsonSourceArraySource<VoiceStateObject> VoiceStates
-        => data.FindJsonSourceArraySource<VoiceStateObject>("voice_states");
+    //public JsonSourceArraySource<VoiceStateObject> VoiceStates
+    //    => data.FindJsonSourceArraySource<VoiceStateObject>("voice_states");
 
     /// <summary>
     /// [ members ] <br/>
     /// 이 길드에 속한 사용자 목록 <br/>
     /// Users in the guild
     /// </summary>
-    public JsonSourceArraySource<GuildMemberObject> Members 
-        => data.FindJsonSourceArraySource<GuildMemberObject>("members");
+    //public JsonSourceArraySource<GuildMemberObject> Members 
+    //    => data.FindJsonSourceArraySource<GuildMemberObject>("members");
 
     /// <summary>
     /// [ channels ] <br/>
     /// 이 길드의 채널 목록 <br/>
     /// Channels in the guild
     /// </summary>
-    public JsonSourceArraySource<ChannelObject> Channels
-        => data.FindJsonSourceArraySource<ChannelObject>("channels");
+    //public JsonSourceArraySource<ChannelObject> Channels
+    //    => data.FindJsonSourceArraySource<ChannelObject>("channels");
 
     /// <summary>
     /// [ threads ] <br/>
     /// 사용자가 볼 수 있는 모든 활성 스레드 <br/>
     /// All active threads in the guild the current user can view
     /// </summary>
-    public JsonSourceArraySource<ChannelObject> Threads 
-        => data.FindJsonSourceArraySource<ChannelObject>("threads");
+    //public JsonSourceArraySource<ChannelObject> Threads 
+    //    => data.FindJsonSourceArraySource<ChannelObject>("threads");
     
     /// <summary>
     /// [ presences ] <br/>
@@ -135,16 +133,35 @@ public class AvailableGuildCreateEventData : EventDataDocument
 
     #nullable enable
     #endregion
+
+
+    // 생성자
+    public AvailableGuildCreateEventData(
+        ReadOnlyMemory<byte> data) : base(data) { }
+
+    #endregion
 }
 
 public class UnavailableGuildCreateEventData : EventDataDocument
 {
-    public override EventDataDocumentMetadata Metadata => metadata;
-    public static EventDataDocumentMetadata metadata = new(typeof(UnavailableGuildCreateEventData));
+    // Static
+    public static EventDataDocumentMetadata metadataStatic = new(typeof(UnavailableGuildCreateEventData));
 
-    public UnavailableGuildCreateEventData(byte[] data) : base(data) { }
-    public override void Init()
+
+    #region Instance
+    
+    // 재정의
+    protected override EventDataDocumentMetadata GetMetadata()
     {
-        metadata.SetProperty(this);
+        if (metadataStatic == null)
+            metadataStatic = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
+
+        return metadataStatic;
     }
+    
+    // 생성자
+    public UnavailableGuildCreateEventData(
+        ReadOnlyMemory<byte> data) : base(data) { }
+        
+    #endregion
 }
