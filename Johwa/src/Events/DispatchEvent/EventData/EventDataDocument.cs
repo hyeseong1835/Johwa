@@ -7,7 +7,7 @@ namespace Johwa.Event.Data;
 
 public class EventDataDocumentMetadata
 {
-    public readonly EventPropertyTypeMetadata[] propertyMetadataArray;
+    public readonly EventPropertyMetadata[] propertyMetadataArray;
     public int propertyCount;
     public Type eventDataType;
 
@@ -15,7 +15,7 @@ public class EventDataDocumentMetadata
     {
         this.eventDataType = eventDataType;
 
-        propertyMetadataArray = EventPropertyTypeMetadata.LoadMetadata(eventDataType).ToArray();
+        propertyMetadataArray = EventPropertyMetadata.LoadMetadata(eventDataType).ToArray();
     }
 }
 
@@ -82,12 +82,12 @@ public abstract class EventDataDocument : IEventDataContainer
         Utf8JsonReader reader = new(data.Span);
         
         // 노드 버퍼 (스택)
-        Span<ReadOnlyValueSet<EventPropertyTypeMetadata, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
-            = stackalloc ReadOnlyValueSet<EventPropertyTypeMetadata, ValueTuple<byte[], int>>.LinkedListNode[metadata.propertyMetadataArray.Length];
+        Span<ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
+            = stackalloc ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>>.LinkedListNode[metadata.propertyMetadataArray.Length];
 
         // 프로퍼티 메타데이터 탐색을 위한 세트 생성
-        ReadOnlyValueSet<EventPropertyTypeMetadata, ValueTuple<byte[], int>> propertyMetadataSet 
-            = new(new ReadOnlyMemory<EventPropertyTypeMetadata>(metadata.propertyMetadataArray), nodeBuffer);
+        ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>> propertyMetadataSet 
+            = new(new ReadOnlyMemory<EventPropertyMetadata>(metadata.propertyMetadataArray), nodeBuffer);
 
         // 프로퍼티 이름 버퍼 대여
         byte[] propertyNameBuffer = ArrayPool<byte>.Shared.Rent(64);
@@ -104,8 +104,8 @@ public abstract class EventDataDocument : IEventDataContainer
                 ValueTuple<byte[], int> nameData = (propertyNameBuffer, reader.ValueSpan.Length);
 
                 // 프로퍼티 메타데이터 탐색
-                EventPropertyTypeMetadata? propertyMetadata;
-                if (propertyMetadataSet.TryExtractValue(nameData, out propertyMetadata, EventPropertyTypeMetadata.IsNameMatchMetaData) == false) {
+                EventPropertyMetadata? propertyMetadata;
+                if (propertyMetadataSet.TryExtractValue(nameData, out propertyMetadata, EventPropertyMetadata.IsNameMatchMetaData) == false) {
                     // 프로퍼티 메타데이터를 찾을 수 없을 경우 예외 발생
                     throw new InvalidOperationException("오류");
                 }
@@ -130,7 +130,7 @@ public abstract class EventDataDocument : IEventDataContainer
             }
 
             // Json에서 찾지 못한 프로퍼티 초기화
-            foreach (EventPropertyTypeMetadata propertyMetadata in propertyMetadataSet.GetEnumerable())
+            foreach (EventPropertyMetadata propertyMetadata in propertyMetadataSet.GetEnumerable())
             {
                 // 프로퍼티 생성
                 EventPropertyData propertyData = propertyMetadata.CreatePropertyData(this, default, JsonTokenType.None);

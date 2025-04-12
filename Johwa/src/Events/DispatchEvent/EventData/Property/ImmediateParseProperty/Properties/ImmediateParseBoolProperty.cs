@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
-public class ImmediateParseBoolAttribute : ImmediateParsePropertyAttribute
+public class ImmediateParseBoolAttribute : ImmediateParsePropertyDescriptorAttribute
 {
     public ImmediateParseBoolAttribute(string name, bool isOptional = false) : base(name, isOptional) { }
 

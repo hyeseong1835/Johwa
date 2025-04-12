@@ -7,7 +7,7 @@ using Johwa.Extension.System.Text.Json;
 
 namespace Johwa.Event.Data;
 
-public class DeferredParseObjectMetaData : EventPropertyTypeMetadata
+public class DeferredParseObjectMetaData : EventPropertyMetadata
 {
     // 필드
     public readonly int minPropertyCount;
@@ -17,7 +17,7 @@ public class DeferredParseObjectMetaData : EventPropertyTypeMetadata
         => DeferredParseObjectPropertyData.GetInstance(this, container, data, tokenType);
 
     // 필드
-    public readonly EventPropertyTypeMetadata[] propertyMetadataArray;
+    public readonly EventPropertyMetadata[] propertyMetadataArray;
 
     // 생성자
     public DeferredParseObjectMetaData(DeferredParseObjectAttribute attribute, 
@@ -32,7 +32,7 @@ public class DeferredParseObjectMetaData : EventPropertyTypeMetadata
         minPropertyCount = 0;
         for (int i = 0; i < propertyMetadataArray.Length; i++)
         {
-            EventPropertyTypeMetadata propertyMetadata = propertyMetadataArray[i];
+            EventPropertyMetadata propertyMetadata = propertyMetadataArray[i];
             if (propertyMetadata.Attribute.isOptional == false) {
                 minPropertyCount++;
             }
@@ -40,11 +40,11 @@ public class DeferredParseObjectMetaData : EventPropertyTypeMetadata
     }
 }
 
-public class DeferredParseObjectAttribute : EventPropertyAttribute
+public class DeferredParseObjectAttribute : EventPropertyDescriptorAttribute
 {
     // 재정의
     public override Type PropertyMetaDataType => typeof(DeferredParseObjectMetaData);
-    public override EventPropertyTypeMetadata CreateMetadata(FieldInfo fieldInfo)
+    public override EventPropertyMetadata CreateMetadata(FieldInfo fieldInfo)
         => new DeferredParseObjectMetaData(this, fieldInfo);
 
     // 생성자
@@ -89,7 +89,7 @@ public abstract class DeferredParseObjectPropertyData : EventPropertyData, IEven
 
     #region 재정의
     
-    public override EventPropertyAttribute Attribute => DeferredParseObjectAttribute;
+    public override EventPropertyDescriptorAttribute Descriptor => DeferredParseObjectAttribute;
 
     IEnumerable<EventPropertyData> IEventDataContainer.GetPropertyDataEnumerable()
     {
@@ -117,7 +117,7 @@ public abstract class DeferredParseObjectPropertyData : EventPropertyData, IEven
 
     #region 필드
 
-    public abstract EventPropertyAttribute DeferredParseObjectAttribute { get; }
+    public abstract EventPropertyDescriptorAttribute DeferredParseObjectAttribute { get; }
     public readonly List<EventPropertyData> propertyDataList;
 
     #endregion
@@ -155,12 +155,12 @@ public abstract class DeferredParseObjectPropertyData : EventPropertyData, IEven
         Utf8JsonReader reader = new Utf8JsonReader(data.Span);
         
         // 노드 버퍼 (스택)
-        Span<ReadOnlyValueSet<EventPropertyTypeMetadata, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
-            = stackalloc ReadOnlyValueSet<EventPropertyTypeMetadata, ValueTuple<byte[], int>>.LinkedListNode[metaData.propertyMetadataArray.Length];
+        Span<ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
+            = stackalloc ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>>.LinkedListNode[metaData.propertyMetadataArray.Length];
 
         // 프로퍼티 메타데이터 탐색을 위한 세트 생성
-        ReadOnlyValueSet<EventPropertyTypeMetadata, ValueTuple<byte[], int>> propertyMetadataSet 
-            = new(new ReadOnlyMemory<EventPropertyTypeMetadata>(metaData.propertyMetadataArray), nodeBuffer);
+        ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>> propertyMetadataSet 
+            = new(new ReadOnlyMemory<EventPropertyMetadata>(metaData.propertyMetadataArray), nodeBuffer);
 
         // 프로퍼티 이름 버퍼 대여
         byte[] propertyNameBuffer = ArrayPool<byte>.Shared.Rent(64);
@@ -177,8 +177,8 @@ public abstract class DeferredParseObjectPropertyData : EventPropertyData, IEven
                 ValueTuple<byte[], int> nameData = (propertyNameBuffer, reader.ValueSpan.Length);
 
                 // 프로퍼티 메타데이터 탐색
-                EventPropertyTypeMetadata? propertyMetadata;
-                if (propertyMetadataSet.TryExtractValue(nameData, out propertyMetadata, EventPropertyTypeMetadata.IsNameMatchMetaData) == false) {
+                EventPropertyMetadata? propertyMetadata;
+                if (propertyMetadataSet.TryExtractValue(nameData, out propertyMetadata, EventPropertyMetadata.IsNameMatchMetaData) == false) {
                     // 프로퍼티 메타데이터를 찾을 수 없을 경우 예외 발생
                     throw new InvalidOperationException("오류");
                 }
@@ -203,7 +203,7 @@ public abstract class DeferredParseObjectPropertyData : EventPropertyData, IEven
             }
 
             // Json에서 찾지 못한 프로퍼티 초기화
-            foreach (EventPropertyTypeMetadata propertyMetadata in propertyMetadataSet.GetEnumerable())
+            foreach (EventPropertyMetadata propertyMetadata in propertyMetadataSet.GetEnumerable())
             {
                 EventPropertyData propertyData = base.propertyMetadata.CreatePropertyData(this, ReadOnlyMemory<byte>.Empty, JsonTokenType.None);
                 propertyDataList.Add(propertyData);

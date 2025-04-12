@@ -4,58 +4,69 @@ using System.Text.Json;
 namespace Johwa.Event.Data;
 
 [AttributeUsage(AttributeTargets.Field, Inherited = true)]
-public abstract class EventPropertyAttribute : Attribute
+public abstract class EventPropertyDescriptorAttribute : Attribute
 {
+    public abstract EventPropertyMetadata PropertyMetaData { get; }
     public abstract Type PropertyMetaDataType { get; }
 
-    public abstract EventPropertyTypeMetadata CreateMetadata(FieldInfo fieldInfo);
-}
+    public readonly string name;
+    public readonly bool isOptional;
+    public readonly bool isNullable;
 
-public abstract class EventPropertyTypeMetadata
+    public EventPropertyDescriptorAttribute(string name, bool isOptional = false, bool isNullable = false)
+    {
+        this.name = name;
+        this.isOptional = isOptional;
+        this.isNullable = isNullable;
+    }
+
+    public abstract EventPropertyMetadata CreateMetadata(FieldInfo fieldInfo);
+}
+public abstract class EventPropertyMetadata
 {
     #region Static
 
-    public static Dictionary<Type, EventPropertyTypeMetadata> instanceDictionary = new();
-    public static EventPropertyTypeMetadata GetMetadata(EventPropertyAttribute attribute, Type propertyMetaDataType, FieldInfo field)
+    static Dictionary<Type, EventPropertyMetadata> instanceDictionary = new();
+    public static EventPropertyMetadata GetMetadata(EventPropertyDescriptorAttribute attribute, Type propertyMetaDataType, FieldInfo field)
     {
-        if (instanceDictionary.TryGetValue(propertyMetaDataType, out EventPropertyTypeMetadata? result) == false)
+        if (instanceDictionary.TryGetValue(propertyMetaDataType, out EventPropertyMetadata? result) == false)
         {
-            result = (EventPropertyTypeMetadata?)Activator.CreateInstance(propertyMetaDataType, attribute, field);
+            result = (EventPropertyMetadata?)Activator.CreateInstance(propertyMetaDataType, attribute, field);
             if (result == null)
                 throw new InvalidOperationException("오류");
         }
         return result;
     }
 
-    public static List<EventPropertyTypeMetadata> LoadMetadata(Type type)
+    public static List<EventPropertyMetadata> LoadMetadata(Type type)
     {
         FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-        List<EventPropertyTypeMetadata> result = new();
+        List<EventPropertyMetadata> result = new();
 
         for (int i = 0; i < fields.Length; i++)
         {
             FieldInfo field = fields[i];
 
             // EventPropertyAttribute를 가진 필드만 필터링
-            EventPropertyAttribute? attribute = field.GetCustomAttribute<EventPropertyAttribute>();
+            EventPropertyDescriptorAttribute? attribute = field.GetCustomAttribute<EventPropertyDescriptorAttribute>();
             if (attribute == null)
                 continue;
 
             // 메타데이터 타입 확인
             Type propertyMetaDataType = attribute.PropertyMetaDataType;
-            if (propertyMetaDataType.IsSubclassOf(typeof(EventPropertyTypeMetadata)) == false)
+            if (propertyMetaDataType.IsSubclassOf(typeof(EventPropertyMetadata)) == false)
                 throw new InvalidOperationException("오류");
 
             // 메타데이터 생성
-            EventPropertyTypeMetadata metadata = GetMetadata(attribute, propertyMetaDataType, field);
+            EventPropertyMetadata metadata = GetMetadata(attribute, propertyMetaDataType, field);
             result.Add(metadata);
         }
         return result;
     }
     
-    public static bool IsNameMatchMetaData(EventPropertyTypeMetadata metadata, ValueTuple<byte[], int> nameData)
+    public static bool IsNameMatchMetaData(EventPropertyMetadata metadata, ValueTuple<byte[], int> nameData)
     {
-        EventPropertyAttribute propertyAttribute = metadata.Attribute;
+        EventPropertyDescriptorAttribute propertyAttribute = metadata.;
         if (metadata.Attribute.name.Length != nameData.Item2)
             return false;
         
@@ -75,7 +86,7 @@ public abstract class EventPropertyTypeMetadata
 
     public readonly FieldInfo fieldInfo;
 
-    public EventPropertyTypeMetadata(FieldInfo fieldInfo)
+    public EventPropertyMetadata(FieldInfo fieldInfo)
     {
         this.fieldInfo = fieldInfo;
     }
@@ -84,24 +95,11 @@ public abstract class EventPropertyTypeMetadata
 
     #endregion
 }
-public class EventPropertyM
-{
-    public readonly string name;
-    public readonly bool isOptional;
-    public readonly bool isNullable;
-    
-    public EventPropertyAttribute(string name, bool isOptional, bool isNullable)
-    {
-        this.name = name;
-        this.isOptional = isOptional;
-        this.isNullable = isNullable;
-    }
-}
 public abstract class EventPropertyData : IDisposable
 {
     #region Instance
 
-    public abstract EventPropertyAttribute Attribute { get; }
+    public abstract EventPropertyDescriptorAttribute Descriptor { get; }
 
     void IDisposable.Dispose()
     {
@@ -110,12 +108,10 @@ public abstract class EventPropertyData : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public EventPropertyTypeMetadata propertyMetadata;
     public ReadOnlyMemory<byte> data;
 
-    public EventPropertyData(EventPropertyTypeMetadata metadata, ReadOnlyMemory<byte> data)
+    public EventPropertyData(ReadOnlyMemory<byte> data)
     {
-        this.propertyMetadata = metadata;
         this.data = data;
     }
 
