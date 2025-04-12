@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Text.Json;
 using Johwa.Common.Collection;
-using Johwa.Extension.System.Text.Json;
+using Johwa.Common.Extension.System.Text.Json;
 
 namespace Johwa.Event.Data;
 
@@ -81,11 +81,11 @@ public abstract class EventDataDocument : IEventDataContainer
         Utf8JsonReader reader = new(data.Span);
         
         // 노드 버퍼 (스택)
-        Span<ReadOnlyValueSet<EventPropertyDescriptorAttribute, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
-            = stackalloc ReadOnlyValueSet<EventPropertyDescriptorAttribute, ValueTuple<byte[], int>>.LinkedListNode[metadata.propertyDescriptorArray.Length];
+        Span<ValueSet<EventPropertyDescriptorAttribute, ReadOnlyMemory<byte>>.LinkedListNode> nodeBuffer 
+            = stackalloc ValueSet<EventPropertyDescriptorAttribute, ReadOnlyMemory<byte>>.LinkedListNode[metadata.propertyDescriptorArray.Length];
 
         // 프로퍼티 메타데이터 탐색을 위한 세트 생성
-        ReadOnlyValueSet<EventPropertyDescriptorAttribute, ValueTuple<byte[], int>> propertyMetadataSet 
+        ValueSet<EventPropertyDescriptorAttribute, ReadOnlyMemory<byte>> propertyMetadataSet 
             = new(new ReadOnlyMemory<EventPropertyDescriptorAttribute>(metadata.propertyDescriptorArray), nodeBuffer);
 
         // 프로퍼티 이름 버퍼 대여
@@ -97,20 +97,18 @@ public abstract class EventDataDocument : IEventDataContainer
             {
                 // 프로퍼티 이름이 아닐 경우 무시
                 if (reader.TokenType != JsonTokenType.PropertyName) continue;
-                
-                // 프로퍼티 이름을 버퍼에 복사
-                reader.ValueSpan.CopyTo(propertyNameBuffer);
-                ValueTuple<byte[], int> nameData = (propertyNameBuffer, reader.ValueSpan.Length);
 
                 // 프로퍼티 메타데이터 탐색
                 EventPropertyDescriptorAttribute? propertyDescriptor;
-                if (propertyMetadataSet.TryExtractValue(nameData, out propertyDescriptor, EventPropertyDescriptorAttribute.IsNameMatch) == false) {
+                reader.ValueSpan.CopyTo(propertyNameBuffer);
+                ReadOnlyMemory<byte> propertyName = new(propertyNameBuffer, 0, reader.ValueSpan.Length);
+                if (propertyMetadataSet.TryExtractValue(propertyName, out propertyDescriptor, EventPropertyDescriptorAttribute.IsNameMatch) == false) {
                     // 프로퍼티 메타데이터를 찾을 수 없을 경우 예외 발생
                     throw new InvalidOperationException("오류");
                 }
 
                 // 불가능한 오류 (컴파일러 안심)
-                if (propertyDescriptor == null){
+                if (propertyDescriptor == null) {
                     throw new InvalidOperationException("오류");
                 }
 
@@ -131,8 +129,11 @@ public abstract class EventDataDocument : IEventDataContainer
             // Json에서 찾지 못한 프로퍼티 초기화
             foreach (EventPropertyDescriptorAttribute propertyDescriptor in propertyMetadataSet.GetEnumerable())
             {
+                // 파라미터로 넘겨줄 데이터 : 이름이 비었으면 전체 데이터 전달
+                ReadOnlyMemory<byte> data = (propertyDescriptor.name.IsEmpty)? this.data : ReadOnlyMemory<byte>.Empty;
+
                 // 프로퍼티 생성
-                EventPropertyData propertyData = propertyDescriptor.CreatePropertyData(this, default, JsonTokenType.None);
+                EventPropertyData propertyData = propertyDescriptor.CreatePropertyData(this, data, JsonTokenType.None);
                 result.Add(propertyData);
             }
         }

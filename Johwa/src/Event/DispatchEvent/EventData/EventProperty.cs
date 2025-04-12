@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using Johwa.Common.Extension.System;
 
 namespace Johwa.Event.Data;
 
@@ -8,14 +9,16 @@ public abstract class EventPropertyDescriptorAttribute : Attribute
 {
     #region Static
     
-    public static bool IsNameMatch(EventPropertyDescriptorAttribute attribute, ReadOnlySpan<byte> nameSpan)
+    public static bool IsNameMatch(EventPropertyDescriptorAttribute descriptor, ReadOnlyMemory<byte> nameMemory)
     {
-        if (attribute.name.Length != nameSpan.Length)
+        if (descriptor.name.Length != nameMemory.Length)
             return false;
 
-        for (int i = 0; i < attribute.name.Length; i++)
+        ReadOnlySpan<byte> nameSpan = nameMemory.Span;
+        ReadOnlySpan<byte> descriptorNameSpan = descriptor.name.Span;
+        for (int i = 0; i < descriptor.name.Length; i++)
         {
-            if (nameSpan[i] != attribute.name[i])
+            if (nameSpan[i] != descriptorNameSpan[i])
                 return false;
         }
 
@@ -29,7 +32,7 @@ public abstract class EventPropertyDescriptorAttribute : Attribute
     public abstract Type PropertyMetaDataType { get; }
 
     public readonly FieldInfo fieldInfo;
-    public readonly byte[] name;
+    public readonly Memory<byte> name;
     public readonly bool isOptional;
     public readonly bool isNullable;
 
@@ -37,7 +40,7 @@ public abstract class EventPropertyDescriptorAttribute : Attribute
     public EventPropertyDescriptorAttribute(FieldInfo fieldInfo, string name, bool isOptional = false, bool isNullable = false)
     {
         this.fieldInfo = fieldInfo;
-        this.name = name;
+        name.CopyToByteMemory(this.name);
         this.isOptional = isOptional;
         this.isNullable = isNullable;
     }
@@ -96,12 +99,6 @@ public abstract class EventPropertyMetadata
         }
         return result;
     }
-
-
-    #endregion
-
-
-    #region Instance
 
 
     #endregion

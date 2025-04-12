@@ -2,8 +2,6 @@ using System.Buffers;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using Johwa.Extension.System.Text.Json;
-using Johwa.Utility.Json;
 
 namespace Johwa.Event;
 
@@ -163,8 +161,8 @@ public class DiscordGatewayClient
             ArrayPool<byte>.Shared.Return(buffer);
         }
         
-        string prettyJsonString = JsonUtility.ToPrettyJsonString(jsonString);
-        Console.WriteLine($"[ 로그 ] 송신 ({byteCount}bytes): \n{prettyJsonString}");
+        //string prettyJsonString = JsonUtility.ToPrettyJsonString(jsonString);
+        //Console.WriteLine($"[ 로그 ] 송신 ({byteCount}bytes): \n{prettyJsonString}");
     }
 
     void StartReceiveLoop()

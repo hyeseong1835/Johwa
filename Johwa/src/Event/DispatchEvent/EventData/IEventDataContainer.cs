@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Johwa.Event.Data;
 
 public interface IEventDataContainer : IDisposable

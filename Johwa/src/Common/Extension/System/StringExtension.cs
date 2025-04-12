@@ -8,4 +8,12 @@ public static class StringExtension
     {
         return MemoryMarshal.AsBytes(str.AsSpan());
     }
+    public static void CopyToByteSpan(this string str, Span<byte> byteSpan)
+    {
+        str.AsByteSpan().CopyTo(byteSpan);
+    }
+    public static void CopyToByteMemory(this string str, Memory<byte> byteMemory)
+    {
+        str.AsByteSpan().CopyTo(byteMemory.Span);
+    }
 }
