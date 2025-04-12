@@ -6,27 +6,60 @@ namespace Johwa.Event.Data;
 [AttributeUsage(AttributeTargets.Field, Inherited = true)]
 public abstract class EventPropertyDescriptorAttribute : Attribute
 {
+    #region Static
+    
+    public static bool IsNameMatch(EventPropertyDescriptorAttribute attribute, ReadOnlySpan<byte> nameSpan)
+    {
+        if (attribute.name.Length != nameSpan.Length)
+            return false;
+
+        for (int i = 0; i < attribute.name.Length; i++)
+        {
+            if (nameSpan[i] != attribute.name[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    #endregion
+
+    // 필드 & 프로퍼티
     public abstract EventPropertyMetadata PropertyMetaData { get; }
     public abstract Type PropertyMetaDataType { get; }
 
-    public readonly string name;
+    public readonly FieldInfo fieldInfo;
+    public readonly byte[] name;
     public readonly bool isOptional;
     public readonly bool isNullable;
 
-    public EventPropertyDescriptorAttribute(string name, bool isOptional = false, bool isNullable = false)
+    // 생성자
+    public EventPropertyDescriptorAttribute(FieldInfo fieldInfo, string name, bool isOptional = false, bool isNullable = false)
     {
+        this.fieldInfo = fieldInfo;
         this.name = name;
         this.isOptional = isOptional;
         this.isNullable = isNullable;
     }
 
-    public abstract EventPropertyMetadata CreateMetadata(FieldInfo fieldInfo);
+    public abstract EventPropertyData CreatePropertyData(IEventDataContainer container, ReadOnlyMemory<byte> data, JsonTokenType tokenType);
 }
 public abstract class EventPropertyMetadata
 {
     #region Static
 
     static Dictionary<Type, EventPropertyMetadata> instanceDictionary = new();
+    public static EventPropertyMetadata GetInstance<T>() 
+        where T : EventPropertyMetadata, new()
+    {
+        Type type = typeof(T);
+        if (instanceDictionary.TryGetValue(type, out EventPropertyMetadata? result) == false)
+        {
+            result = new T();
+            instanceDictionary[type] = result;
+        }
+        return result;
+    }
     public static EventPropertyMetadata GetMetadata(EventPropertyDescriptorAttribute attribute, Type propertyMetaDataType, FieldInfo field)
     {
         if (instanceDictionary.TryGetValue(propertyMetaDataType, out EventPropertyMetadata? result) == false)
@@ -63,35 +96,13 @@ public abstract class EventPropertyMetadata
         }
         return result;
     }
-    
-    public static bool IsNameMatchMetaData(EventPropertyMetadata metadata, ValueTuple<byte[], int> nameData)
-    {
-        EventPropertyDescriptorAttribute propertyAttribute = metadata.;
-        if (metadata.Attribute.name.Length != nameData.Item2)
-            return false;
-        
-        for (int i = 0; i < metadata.Attribute.name.Length; i++)
-        {
-            if (nameData.Item1[i] != metadata.Attribute.name[i]) 
-                return false;
-        }
-        
-        return true;
-    }
+
 
     #endregion
 
 
     #region Instance
 
-    public readonly FieldInfo fieldInfo;
-
-    public EventPropertyMetadata(FieldInfo fieldInfo)
-    {
-        this.fieldInfo = fieldInfo;
-    }
-
-    public abstract EventPropertyData CreatePropertyData(IEventDataContainer container, ReadOnlyMemory<byte> data, JsonTokenType tokenType);
 
     #endregion
 }

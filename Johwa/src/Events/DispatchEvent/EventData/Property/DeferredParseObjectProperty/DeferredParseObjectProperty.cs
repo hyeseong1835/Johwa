@@ -12,21 +12,14 @@ public class DeferredParseObjectMetaData : EventPropertyMetadata
     // 필드
     public readonly int minPropertyCount;
 
-    // 재정의
-    public override EventPropertyData CreatePropertyData(IEventDataContainer container, ReadOnlyMemory<byte> data, JsonTokenType tokenType)
-        => DeferredParseObjectPropertyData.GetInstance(this, container, data, tokenType);
-
     // 필드
-    public readonly EventPropertyMetadata[] propertyMetadataArray;
+    public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
 
     // 생성자
-    public DeferredParseObjectMetaData(DeferredParseObjectAttribute attribute, 
-        FieldInfo fieldInfo) : base(fieldInfo)
+    public DeferredParseObjectMetaData()
     {
-        this.attribute = attribute;
-
         // 프로퍼티 메타데이터 배열 로드
-        propertyMetadataArray = LoadMetadata(fieldInfo.FieldType).ToArray();
+        propertyDescriptorArray = EventPropertyDescriptorAttribute.LoadDescriptor<DeferredParseObjectMetaData>().ToArray();
         
         // 프로퍼
         minPropertyCount = 0;
@@ -43,9 +36,11 @@ public class DeferredParseObjectMetaData : EventPropertyMetadata
 public class DeferredParseObjectAttribute : EventPropertyDescriptorAttribute
 {
     // 재정의
+    public override EventPropertyData CreatePropertyData(IEventDataContainer container, ReadOnlyMemory<byte> data, JsonTokenType tokenType)
+        => DeferredParseObjectPropertyData.GetInstance(this, container, data, tokenType);
+
+    // 필드 & 프로퍼티
     public override Type PropertyMetaDataType => typeof(DeferredParseObjectMetaData);
-    public override EventPropertyMetadata CreateMetadata(FieldInfo fieldInfo)
-        => new DeferredParseObjectMetaData(this, fieldInfo);
 
     // 생성자
     public DeferredParseObjectAttribute(

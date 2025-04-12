@@ -1,6 +1,6 @@
 using System.Text.Json;
-using Johwa.Common;
-namespace Johwa.Utility;
+
+namespace Johwa.Common.Utility;
 
 public static class SnowflakeUtility
 {

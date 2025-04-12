@@ -7,15 +7,14 @@ namespace Johwa.Event.Data;
 
 public class EventDataDocumentMetadata
 {
-    public readonly EventPropertyMetadata[] propertyMetadataArray;
+    public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
     public int propertyCount;
     public Type eventDataType;
 
     public EventDataDocumentMetadata(Type eventDataType)
     {
         this.eventDataType = eventDataType;
-
-        propertyMetadataArray = EventPropertyMetadata.LoadMetadata(eventDataType).ToArray();
+        propertyDescriptorArray = IEventDataContainer.LoadDescriptors(eventDataType).ToArray();
     }
 }
 
@@ -59,7 +58,7 @@ public abstract class EventDataDocument : IEventDataContainer
     {
         this.data = data;
         this.metadata = GetMetadata();
-        this.propertyData = CreateProperty();
+        this.propertyData = CreateProperties();
     }
 
     #endregion
@@ -74,20 +73,20 @@ public abstract class EventDataDocument : IEventDataContainer
 
     #region 메서드
 
-    List<EventPropertyData> CreateProperty()
+    List<EventPropertyData> CreateProperties()
     {
-        List<EventPropertyData> result = new(metadata.propertyMetadataArray.Length);
+        List<EventPropertyData> result = new(metadata.propertyDescriptorArray.Length);
 
         // Json 읽기
         Utf8JsonReader reader = new(data.Span);
         
         // 노드 버퍼 (스택)
-        Span<ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
-            = stackalloc ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>>.LinkedListNode[metadata.propertyMetadataArray.Length];
+        Span<ReadOnlyValueSet<EventPropertyDescriptorAttribute, ValueTuple<byte[], int>>.LinkedListNode> nodeBuffer 
+            = stackalloc ReadOnlyValueSet<EventPropertyDescriptorAttribute, ValueTuple<byte[], int>>.LinkedListNode[metadata.propertyDescriptorArray.Length];
 
         // 프로퍼티 메타데이터 탐색을 위한 세트 생성
-        ReadOnlyValueSet<EventPropertyMetadata, ValueTuple<byte[], int>> propertyMetadataSet 
-            = new(new ReadOnlyMemory<EventPropertyMetadata>(metadata.propertyMetadataArray), nodeBuffer);
+        ReadOnlyValueSet<EventPropertyDescriptorAttribute, ValueTuple<byte[], int>> propertyMetadataSet 
+            = new(new ReadOnlyMemory<EventPropertyDescriptorAttribute>(metadata.propertyDescriptorArray), nodeBuffer);
 
         // 프로퍼티 이름 버퍼 대여
         byte[] propertyNameBuffer = ArrayPool<byte>.Shared.Rent(64);
@@ -104,14 +103,14 @@ public abstract class EventDataDocument : IEventDataContainer
                 ValueTuple<byte[], int> nameData = (propertyNameBuffer, reader.ValueSpan.Length);
 
                 // 프로퍼티 메타데이터 탐색
-                EventPropertyMetadata? propertyMetadata;
-                if (propertyMetadataSet.TryExtractValue(nameData, out propertyMetadata, EventPropertyMetadata.IsNameMatchMetaData) == false) {
+                EventPropertyDescriptorAttribute? propertyDescriptor;
+                if (propertyMetadataSet.TryExtractValue(nameData, out propertyDescriptor, EventPropertyDescriptorAttribute.IsNameMatch) == false) {
                     // 프로퍼티 메타데이터를 찾을 수 없을 경우 예외 발생
                     throw new InvalidOperationException("오류");
                 }
 
                 // 불가능한 오류 (컴파일러 안심)
-                if (propertyMetadata == null){
+                if (propertyDescriptor == null){
                     throw new InvalidOperationException("오류");
                 }
 
@@ -125,15 +124,15 @@ public abstract class EventDataDocument : IEventDataContainer
                 ReadOnlyMemory<byte> propertyJsonData = reader.ReadAndSliceToken(data);
 
                 // 프로퍼티 생성
-                EventPropertyData propertyData = propertyMetadata.CreatePropertyData(this, propertyJsonData, propertyDataTokenType);
+                EventPropertyData propertyData = propertyDescriptor.CreatePropertyData(this, propertyJsonData, propertyDataTokenType);
                 result.Add(propertyData);
             }
 
             // Json에서 찾지 못한 프로퍼티 초기화
-            foreach (EventPropertyMetadata propertyMetadata in propertyMetadataSet.GetEnumerable())
+            foreach (EventPropertyDescriptorAttribute propertyDescriptor in propertyMetadataSet.GetEnumerable())
             {
                 // 프로퍼티 생성
-                EventPropertyData propertyData = propertyMetadata.CreatePropertyData(this, default, JsonTokenType.None);
+                EventPropertyData propertyData = propertyDescriptor.CreatePropertyData(this, default, JsonTokenType.None);
                 result.Add(propertyData);
             }
         }

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Johwa.Extension.System.Text.Json;
+namespace Johwa.Common.Extension.System.Text.Json;
 public static class Utf8JsonReaderExtension
 {
     public static bool TryFindPropertyName(this ref Utf8JsonReader reader, string propertyName)
