@@ -2,17 +2,31 @@ using System.Reflection;
 
 namespace Johwa.Event.Data;
 
-public abstract class EventObjectPropertyMetadata : EventPropertyMetadata
+public abstract class EventObjectPropertyMetadata : EventPropertyMetadata, IEventDataContainerMetadata
 {
-    // 필드
-    public readonly int minPropertyCount;
+    #region 재정의
+
+    Type IEventDataContainerMetadata.ContainerType => dataType;
+
+    public EventPropertyGroupDescriptorAttribute[] PropertyGroupDescriptorArray => propertyGroupDescriptorArray;
+
+    public EventPropertyDescriptorAttribute[] PropertyDescriptorArray => propertyDescriptorArray;
+
+    #endregion
+
 
     // 필드
+    public Type dataType;
+    public readonly int minPropertyCount;
+    public readonly EventPropertyGroupDescriptorAttribute[] propertyGroupDescriptorArray;
     public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
 
-    public EventObjectPropertyMetadata(EventPropertyDescriptorAttribute[] propertyDescriptorArray)
+    // 생성자
+    public EventObjectPropertyMetadata(Type dataType)
     {
-        this.propertyDescriptorArray = propertyDescriptorArray;
+        this.dataType = dataType;
+        this.propertyDescriptorArray = IEventDataContainer.LoadPropertyDataDescriptors(dataType).ToArray();
+        this.propertyGroupDescriptorArray = IEventDataContainer.LoadPropertyGroupDescriptors(dataType).ToArray();
 
         // 프로퍼티 최소 개수
         this.minPropertyCount = 0;

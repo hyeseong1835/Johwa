@@ -1,21 +1,26 @@
-using System.Buffers;
-using System.Text.Json;
-using Johwa.Common.Collection;
-using Johwa.Common.Extension.System.Text.Json;
-
 namespace Johwa.Event.Data;
 
-public class EventDataDocumentMetadata
+public class EventDataDocumentMetadata : IEventDataContainerMetadata
 {
-    public Type eventDataType;
+    #region 재정의
+
+    public Type ContainerType => documentType;
+    public EventPropertyGroupDescriptorAttribute[] PropertyGroupDescriptorArray => propertyGroupDescriptorArray;
+    public EventPropertyDescriptorAttribute[] PropertyDescriptorArray => propertyDescriptorArray;
+
+    #endregion
+
+    // 필드
+    public Type documentType;
     public readonly EventPropertyGroupDescriptorAttribute[] propertyGroupDescriptorArray;
     public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
 
+    // 생성자
     public EventDataDocumentMetadata(Type eventDataType)
     {
-        this.eventDataType = eventDataType;
-        propertyGroupDescriptorArray = IEventDataContainer.LoadPropertyGroupDescriptors(eventDataType).ToArray();
-        propertyDescriptorArray = IEventDataContainer.LoadPropertyDataDescriptors(eventDataType).ToArray();
+        this.documentType = eventDataType;
+        this.propertyGroupDescriptorArray = IEventDataContainer.LoadPropertyGroupDescriptors(eventDataType).ToArray();
+        this.propertyDescriptorArray = IEventDataContainer.LoadPropertyDataDescriptors(eventDataType).ToArray();
     }
 }
 
@@ -23,14 +28,11 @@ public abstract class EventDataDocument : IEventDataContainer
 {
     #region 재정의
 
-    IEnumerable<EventPropertyData> IEventDataContainer.GetPropertyDataEnumerable()
-    {
-        for (int i = 0; i < propertyData.Count; i++)
-        {
-            EventPropertyData property = propertyData[i];
-            yield return property;
-        }
-    }
+    Type IEventDataContainer.Type => metadata.documentType;
+
+    ReadOnlyMemory<byte> IEventDataContainer.Data => data;
+    IEventDataContainerMetadata IEventDataContainer.Metadata => metadata;
+    
     void IDisposable.Dispose()
     {
         data = ReadOnlyMemory<byte>.Empty;
@@ -57,9 +59,9 @@ public abstract class EventDataDocument : IEventDataContainer
 
     public EventDataDocument(ReadOnlyMemory<byte> data)
     {
-        this.data = data;
         this.metadata = GetMetadata();
-        this.propertyData = CreateProperties();
+        this.data = data;
+        this.propertyData = ((IEventDataContainer)this).CreateProperties();
     }
 
     #endregion

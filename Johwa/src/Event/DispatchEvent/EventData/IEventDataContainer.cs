@@ -8,11 +8,17 @@ namespace Johwa.Event.Data;
 
 public interface IEventDataContainerMetadata
 {
+    public Type ContainerType { get; }
     public EventPropertyGroupDescriptorAttribute[] PropertyGroupDescriptorArray { get; }
     public EventPropertyDescriptorAttribute[] PropertyDescriptorArray { get; }
 }
 public interface IEventDataContainer : IDisposable
 {
+    #region Static
+
+    public static List<EventPropertyGroupDescriptorAttribute> LoadPropertyGroupDescriptors<T>()
+        where T : IEventDataContainer
+        => LoadPropertyGroupDescriptors(typeof(T));
     public static List<EventPropertyGroupDescriptorAttribute> LoadPropertyGroupDescriptors(Type type)
     {
         List<EventPropertyGroupDescriptorAttribute> result = new();
@@ -33,33 +39,14 @@ public interface IEventDataContainer : IDisposable
         return result;
     }
 
-    public List<EventPropertyGroupDescriptorAttribute> LoadPropertyGroupDescriptors()
-    {
-        List<EventPropertyGroupDescriptorAttribute> result = new();
-
-        // 필드 정보 가져오기
-        Type type = Type;
-        FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-        for (int i = 0; i < fields.Length; i++)
-        {
-            FieldInfo field = fields[i];
-
-            // EventPropertyGroupDescriptorAttribute를 가진 필드만 필터링
-            EventPropertyGroupDescriptorAttribute? descriptor = field.GetCustomAttribute<EventPropertyGroupDescriptorAttribute>();
-            if (descriptor == null)
-                continue;
-
-            result.Add(descriptor);
-        }
-        return result;
-    }
-
-    public List<EventPropertyDescriptorAttribute> LoadPropertyDataDescriptors()
+    public static List<EventPropertyDescriptorAttribute> LoadPropertyDataDescriptors<T>()
+        where T : IEventDataContainer
+        => LoadPropertyDataDescriptors(typeof(T));
+    public static List<EventPropertyDescriptorAttribute> LoadPropertyDataDescriptors(Type type)
     {
         List<EventPropertyDescriptorAttribute> result = new();
 
         // 필드 정보 가져오기
-        Type type = Type;
         FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
         for (int i = 0; i < fields.Length; i++)
         {
@@ -74,13 +61,25 @@ public interface IEventDataContainer : IDisposable
         }
         return result;
     }
+
+    #endregion
+
+
+    #region Instance
+
+    public List<EventPropertyGroupDescriptorAttribute> LoadPropertyGroupDescriptors()
+        => LoadPropertyGroupDescriptors(Type);
+
+    public List<EventPropertyDescriptorAttribute> LoadPropertyDataDescriptors()
+        => LoadPropertyDataDescriptors(Type);
     
     public List<EventPropertyData> CreateProperties()
     {
-        ReadOnlyMemory<byte> dataMemory = Data;
-        ReadOnlySpan<byte> dataSpan = dataMemory.Span;
         IEventDataContainerMetadata metadata = Metadata;
         EventPropertyDescriptorAttribute[] propertyDescriptorArray = metadata.PropertyDescriptorArray;
+
+        ReadOnlyMemory<byte> dataMemory = Data;
+        ReadOnlySpan<byte> dataSpan = dataMemory.Span;
 
         List<EventPropertyData> result = new(metadata.PropertyDescriptorArray.Length);
 
@@ -159,6 +158,6 @@ public interface IEventDataContainer : IDisposable
     public Type Type { get; }
     public IEventDataContainerMetadata Metadata { get; }
     public ReadOnlyMemory<byte> Data { get; }
-    public IEnumerable<EventPropertyData> GetPropertyDataEnumerable();
-    abstract void IDisposable.Dispose();
+
+    #endregion
 }
