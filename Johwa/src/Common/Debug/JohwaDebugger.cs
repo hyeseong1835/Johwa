@@ -1,24 +1,47 @@
+using System.Runtime.CompilerServices;
+
 namespace Johwa.Common.Debug;
 
 public class JohwaDebugger
 {
-    public static void Log(string message)
+    #region Static
+
+    public static JohwaDebugger? Instance { get; }
+
+    public static void Log(
+        LogSeverity severity,
+        string message,
+        string detail = "",
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0)
     {
-        Console.WriteLine(message);
+        new LogInfo
+        {
+            severity = severity,
+            message = message,
+            detail = detail,
+            callerInfo = new CallerInfo(memberName, filePath, lineNumber),
+            
+        };
+    }
+    public static void Log(Exception exception)
+    {
+        
+    }
+    public static void Log(LogInfo info)
+    {
+
     }
 
-    public static void LogError(string message)
-    {
-        Console.WriteLine($"Error: {message}");
-    }
 
-    public static void LogWarning(string message)
-    {
-        Console.WriteLine($"Warning: {message}");
-    }
+    #endregion
+    
+    #region Instance
 
-    public static void LogInfo(string message)
-    {
-        Console.WriteLine($"Info: {message}");
-    }
+    public Action<string> onLog;
+    public Action<string> onWarning;
+    public Action<string> onError;
+
+    #endregion
 }
