@@ -1,17 +1,65 @@
+using System.Buffers;
 using System.Reflection;
+using System.Text.Json;
+using Johwa.Common.Collection;
+using Johwa.Common.Extension.System.Text.Json;
 
 namespace Johwa.Event.Data;
 
+public interface IEventDataContainerMetadata
+{
+    public EventPropertyGroupDescriptorAttribute[] PropertyGroupDescriptorArray { get; }
+    public EventPropertyDescriptorAttribute[] PropertyDescriptorArray { get; }
+}
 public interface IEventDataContainer : IDisposable
 {
-    public static List<EventPropertyDescriptorAttribute> LoadDescriptors<T>() 
-        where T : IEventDataContainer
-        => LoadDescriptors(typeof(T));
-    public static List<EventPropertyDescriptorAttribute> LoadDescriptors(Type type)
+    public static List<EventPropertyGroupDescriptorAttribute> LoadPropertyGroupDescriptors(Type type)
+    {
+        List<EventPropertyGroupDescriptorAttribute> result = new();
+
+        // 필드 정보 가져오기
+        FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+        for (int i = 0; i < fields.Length; i++)
+        {
+            FieldInfo field = fields[i];
+
+            // EventPropertyGroupDescriptorAttribute를 가진 필드만 필터링
+            EventPropertyGroupDescriptorAttribute? descriptor = field.GetCustomAttribute<EventPropertyGroupDescriptorAttribute>();
+            if (descriptor == null)
+                continue;
+
+            result.Add(descriptor);
+        }
+        return result;
+    }
+
+    public List<EventPropertyGroupDescriptorAttribute> LoadPropertyGroupDescriptors()
+    {
+        List<EventPropertyGroupDescriptorAttribute> result = new();
+
+        // 필드 정보 가져오기
+        Type type = Type;
+        FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+        for (int i = 0; i < fields.Length; i++)
+        {
+            FieldInfo field = fields[i];
+
+            // EventPropertyGroupDescriptorAttribute를 가진 필드만 필터링
+            EventPropertyGroupDescriptorAttribute? descriptor = field.GetCustomAttribute<EventPropertyGroupDescriptorAttribute>();
+            if (descriptor == null)
+                continue;
+
+            result.Add(descriptor);
+        }
+        return result;
+    }
+
+    public List<EventPropertyDescriptorAttribute> LoadPropertyDataDescriptors()
     {
         List<EventPropertyDescriptorAttribute> result = new();
 
         // 필드 정보 가져오기
+        Type type = Type;
         FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
         for (int i = 0; i < fields.Length; i++)
         {
@@ -27,6 +75,90 @@ public interface IEventDataContainer : IDisposable
         return result;
     }
     
-    public abstract IEnumerable<EventPropertyData> GetPropertyDataEnumerable();
+    public List<EventPropertyData> CreateProperties()
+    {
+        ReadOnlyMemory<byte> dataMemory = Data;
+        ReadOnlySpan<byte> dataSpan = dataMemory.Span;
+        IEventDataContainerMetadata metadata = Metadata;
+        EventPropertyDescriptorAttribute[] propertyDescriptorArray = metadata.PropertyDescriptorArray;
+
+        List<EventPropertyData> result = new(metadata.PropertyDescriptorArray.Length);
+
+        // Json 읽기
+        Utf8JsonReader reader = new(dataSpan);
+        
+        // 노드 버퍼 (스택)
+        Span<ValueSet<EventPropertyDescriptorAttribute, ReadOnlyMemory<byte>>.LinkedListNode> nodeBuffer 
+            = stackalloc ValueSet<EventPropertyDescriptorAttribute, ReadOnlyMemory<byte>>.LinkedListNode[propertyDescriptorArray.Length];
+
+        // 프로퍼티 메타데이터 탐색을 위한 세트 생성
+        ValueSet<EventPropertyDescriptorAttribute, ReadOnlyMemory<byte>> propertyMetadataSet 
+            = new(new ReadOnlyMemory<EventPropertyDescriptorAttribute>(propertyDescriptorArray), nodeBuffer);
+
+        // 프로퍼티 이름 버퍼 대여
+        byte[] propertyNameBuffer = ArrayPool<byte>.Shared.Rent(64);
+        try
+        {
+            // 읽기
+            while (reader.Read())
+            {
+                // 프로퍼티 이름이 아닐 경우 무시
+                if (reader.TokenType != JsonTokenType.PropertyName) continue;
+
+                // 프로퍼티 이름 복사
+                ReadOnlySpan<byte> valueSpan = reader.ValueSpan;
+                valueSpan.CopyTo(propertyNameBuffer);
+
+                // 프로퍼티 메타데이터 탐색
+                EventPropertyDescriptorAttribute? propertyDescriptor;
+                ReadOnlyMemory<byte> propertyName = new(propertyNameBuffer, 0, valueSpan.Length);
+                if (propertyMetadataSet.TryExtractValue(propertyName, out propertyDescriptor, EventPropertyDescriptorAttribute.IsNameMatch) == false) {
+                    // 프로퍼티 메타데이터를 찾을 수 없을 경우 예외 발생
+                    throw new InvalidOperationException("오류");
+                }
+
+                // 불가능한 오류 (컴파일러 안심)
+                if (propertyDescriptor == null) {
+                    throw new InvalidOperationException("오류");
+                }
+
+                // 값으로 이동
+                reader.Read();
+
+                // 프로퍼티 데이터 타입
+                JsonTokenType propertyDataTokenType = reader.TokenType;
+                
+                // 프로퍼티 데이터 자르기
+                ReadOnlyMemory<byte> propertyJsonData = reader.ReadAndSliceToken(dataMemory);
+
+                // 프로퍼티 생성
+                EventPropertyData propertyData = propertyDescriptor.CreatePropertyData(this, propertyJsonData, propertyDataTokenType);
+                result.Add(propertyData);
+            }
+
+            // Json에서 찾지 못한 프로퍼티 초기화
+            foreach (EventPropertyDescriptorAttribute propertyDescriptor in propertyMetadataSet.GetEnumerable())
+            {
+                // 파라미터로 넘겨줄 데이터 : 이름이 비었으면 전체 데이터 전달
+                ReadOnlyMemory<byte> propertyDataMemory = (propertyDescriptor.name.IsEmpty)? dataMemory : ReadOnlyMemory<byte>.Empty;
+
+                // 프로퍼티 생성
+                EventPropertyData propertyData = propertyDescriptor.CreatePropertyData(this, propertyDataMemory, JsonTokenType.None);
+                result.Add(propertyData);
+            }
+        }
+        finally
+        {
+            // 프로퍼티 이름 버퍼 반납
+            ArrayPool<byte>.Shared.Return(propertyNameBuffer);
+        }
+        
+        return result;
+    }
+
+    public Type Type { get; }
+    public IEventDataContainerMetadata Metadata { get; }
+    public ReadOnlyMemory<byte> Data { get; }
+    public IEnumerable<EventPropertyData> GetPropertyDataEnumerable();
     abstract void IDisposable.Dispose();
 }
