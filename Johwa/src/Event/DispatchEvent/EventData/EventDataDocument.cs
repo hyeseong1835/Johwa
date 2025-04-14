@@ -4,23 +4,20 @@ public class EventDataDocumentMetadata : IEventDataContainerMetadata
 {
     #region 재정의
 
-    public Type ContainerType => documentType;
-    public EventPropertyGroupDescriptorAttribute[] PropertyGroupDescriptorArray => propertyGroupDescriptorArray;
+    Type IEventDataGroupMetadata.GroupType => documentType;
     public EventPropertyDescriptorAttribute[] PropertyDescriptorArray => propertyDescriptorArray;
 
     #endregion
 
     // 필드
     public Type documentType;
-    public readonly EventPropertyGroupDescriptorAttribute[] propertyGroupDescriptorArray;
     public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
 
     // 생성자
-    public EventDataDocumentMetadata(Type eventDataType)
+    public EventDataDocumentMetadata(Type documentType)
     {
-        this.documentType = eventDataType;
-        this.propertyGroupDescriptorArray = IEventDataContainer.LoadPropertyGroupDescriptors(eventDataType).ToArray();
-        this.propertyDescriptorArray = IEventDataContainer.LoadPropertyDataDescriptors(eventDataType).ToArray();
+        this.documentType = documentType;
+        this.propertyDescriptorArray = IEventDataGroupMetadata.LoadPropertyDescriptors(documentType);
     }
 }
 
@@ -28,11 +25,11 @@ public abstract class EventDataDocument : IEventDataContainer
 {
     #region 재정의
 
-    Type IEventDataContainer.Type => metadata.documentType;
-
+    // IEventDataContainer
     ReadOnlyMemory<byte> IEventDataContainer.Data => data;
-    IEventDataContainerMetadata IEventDataContainer.Metadata => metadata;
+    IEventDataContainerMetadata IEventDataContainer.ContainerMetadata => metadata;
     
+    // IDisposable
     void IDisposable.Dispose()
     {
         data = ReadOnlyMemory<byte>.Empty;

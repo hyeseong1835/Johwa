@@ -4,6 +4,6 @@ public struct LogInfo
 {
     public LogSeverity severity;
     public string message;
-    public string detail;
-    public CallerInfo callerInfo;
+    public string? detail;
+    public string? stackTrace;
 }

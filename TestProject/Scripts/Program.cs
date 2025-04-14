@@ -4,6 +4,7 @@ using Johwa.Core;
 internal class Program
 {
     public static JohwaLogger debugger = new();
+    public static JohwaLogReceiver consoleReceiver = new JohwaLogReceiver();
     public static DiscordBot bot = new DiscordBot(
         Environment.GetEnvironmentVariable("DISCORD_BOTTOKEN") 
             ?? throw new Exception("DISCORD_BOTTOKEN is not set.")

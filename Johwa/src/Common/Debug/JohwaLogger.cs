@@ -1,5 +1,3 @@
-using System.Runtime.CompilerServices;
-
 namespace Johwa.Common.Debug;
 
 public class JohwaLogger
@@ -11,31 +9,27 @@ public class JohwaLogger
     public static void Log(
         LogSeverity severity,
         string message,
-        string detail = "",
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string filePath = "",
-        [CallerLineNumber] int lineNumber = 0)
+        string? detail = null,
+        string? stackTrace = null
+        )
     {
         LogInfo logInfo = new LogInfo
         {
             severity = severity,
             message = message,
             detail = detail,
-            callerInfo = new CallerInfo(memberName, filePath, lineNumber),
+            stackTrace = stackTrace
         };
         Log(logInfo);
     }
-    public static void Log(LogSeverity severity, string message, Exception exception,
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string filePath = "",
-        [CallerLineNumber] int lineNumber = 0)
+    public static void Log(LogSeverity severity, string message, Exception exception, string? detail = null)
     {
         LogInfo logInfo = new LogInfo
         {
             severity = severity,
             message = message,
-            detail = $"{exception.StackTrace}",
-            callerInfo = new CallerInfo(memberName, filePath, lineNumber),
+            detail = detail,
+            stackTrace = exception.StackTrace
         };
         Log(logInfo);
     }

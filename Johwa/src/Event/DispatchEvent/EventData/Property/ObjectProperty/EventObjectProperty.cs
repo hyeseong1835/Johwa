@@ -6,11 +6,9 @@ public abstract class EventObjectPropertyMetadata : EventPropertyMetadata, IEven
 {
     #region 재정의
 
-    Type IEventDataContainerMetadata.ContainerType => dataType;
-
-    public EventPropertyGroupDescriptorAttribute[] PropertyGroupDescriptorArray => propertyGroupDescriptorArray;
-
-    public EventPropertyDescriptorAttribute[] PropertyDescriptorArray => propertyDescriptorArray;
+    // IEventDataGroupMetadata
+    Type IEventDataGroupMetadata.GroupType => dataType;
+    EventPropertyDescriptorAttribute[] IEventDataGroupMetadata.PropertyDescriptorArray => propertyDescriptorArray;
 
     #endregion
 
@@ -18,15 +16,13 @@ public abstract class EventObjectPropertyMetadata : EventPropertyMetadata, IEven
     // 필드
     public Type dataType;
     public readonly int minPropertyCount;
-    public readonly EventPropertyGroupDescriptorAttribute[] propertyGroupDescriptorArray;
     public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
 
     // 생성자
     public EventObjectPropertyMetadata(Type dataType)
     {
         this.dataType = dataType;
-        this.propertyDescriptorArray = IEventDataContainer.LoadPropertyDataDescriptors(dataType).ToArray();
-        this.propertyGroupDescriptorArray = IEventDataContainer.LoadPropertyGroupDescriptors(dataType).ToArray();
+        this.propertyDescriptorArray = IEventDataContainerMetadata.LoadPropertyDescriptors(dataType);
 
         // 프로퍼티 최소 개수
         this.minPropertyCount = 0;
