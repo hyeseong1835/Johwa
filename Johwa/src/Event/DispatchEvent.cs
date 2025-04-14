@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace Johwa.Event;
 
 public abstract class DispatchEvent
@@ -20,5 +18,5 @@ public abstract class DispatchEvent
     }
 
     public bool isEnabled;
-    public abstract void Handle(DiscordGatewayClient client, ReadOnlySpan<byte> data);
+    public abstract void Handle(DiscordGatewayClient client, ReadOnlyMemory<byte> dataMemory);
 }

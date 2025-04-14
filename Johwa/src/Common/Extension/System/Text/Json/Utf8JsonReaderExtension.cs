@@ -9,16 +9,26 @@ public static class Utf8JsonReaderExtension
 
         while (reader.Read())
         {
+            // 현재 영역을 벗어나면 종료
             if (reader.CurrentDepth < startDepth)
-                return false; // 영역을 벗어남
+                return false;
+
+            // 객체 Skip
+            if (reader.TokenType == JsonTokenType.StartObject) {
+                reader.Skip(); 
+                continue;
+            }
             
+            // 프로퍼티 이름만 필터링
             if (reader.TokenType != JsonTokenType.PropertyName)
-                continue; // 이름만 필터링
+                continue; 
 
             if (reader.ValueTextEquals(propertyName))
                 return true; // 찾음
         }
-        return false; // 끝까지 읽었지만 찾지 못함
+        
+        // 끝까지 읽었지만 찾지 못함
+        return false; 
     }
     public static bool TryReadObject(this ref Utf8JsonReader reader, ReadOnlySpan<byte> originalJson, out ReadOnlySpan<byte> result)
     {

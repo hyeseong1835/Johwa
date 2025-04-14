@@ -41,6 +41,9 @@ public class DiscordGatewayClient
     DateTime _lastHeartbeatSent;
     DateTime _lastHeartbeatAck;
 
+    // 이벤트 핸들러
+    
+
     #endregion
 
     #endregion
