@@ -1,54 +1,43 @@
-using System.Reflection;
-
 namespace Johwa.Event.Data;
 
-public abstract class EventObjectPropertyMetadata : EventPropertyMetadata, IEventDataContainerMetadata
+
+public abstract class EventObjectPropertyData : EventProperty
 {
-    #region 재정의
+    #region Object
 
-    // IEventDataGroupMetadata
-    Type IEventDataGroupMetadata.GroupType => dataType;
-    EventPropertyDescriptorAttribute[] IEventDataGroupMetadata.PropertyDescriptorArray => propertyDescriptorArray;
-
-    #endregion
-
-
-    // 필드
-    public Type dataType;
-    public readonly int minPropertyCount;
-    public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
-
-    // 생성자
-    public EventObjectPropertyMetadata(Type dataType)
+    new public abstract class Metadata : EventProperty.Metadata, IEventDataContainerMetadata
     {
-        this.dataType = dataType;
-        this.propertyDescriptorArray = IEventDataContainerMetadata.LoadPropertyDescriptors(dataType);
+        #region 재정의
 
-        // 프로퍼티 최소 개수
-        this.minPropertyCount = 0;
-        for (int i = 0; i < propertyDescriptorArray.Length; i++)
+        // IEventDataGroupMetadata
+        EventPropertyAttribute[] IEventDataGroupMetadata.PropertyDescriptorArray => propertyDescriptorArray;
+
+        #endregion
+
+
+        // 필드
+        public readonly int minPropertyCount;
+        public readonly EventPropertyAttribute[] propertyDescriptorArray;
+
+        // 생성자
+        public Metadata(Type propertyType) : base(propertyType)
         {
-            EventPropertyDescriptorAttribute descriptor = propertyDescriptorArray[i];
-            if (descriptor.isOptional == false)
-                minPropertyCount++;
+            this.propertyDescriptorArray = IEventDataContainerMetadata.LoadPropertyDescriptors(propertyType);
+
+            // 프로퍼티 최소 개수
+            this.minPropertyCount = 0;
+            for (int i = 0; i < propertyDescriptorArray.Length; i++)
+            {
+                EventPropertyAttribute descriptor = propertyDescriptorArray[i];
+                if (descriptor.isOptional == false)
+                    minPropertyCount++;
+            }
         }
     }
-}
-public abstract class EventObjectPropertyDescriptorAttribute : EventPropertyDescriptorAttribute
-{
-    // 필드
-    public abstract EventObjectPropertyMetadata EventValuePropertyMetadata { get; }
 
-    // 생성자
-    public EventObjectPropertyDescriptorAttribute(
-        FieldInfo fieldInfo, string name, bool isOptional, bool isNullable) : base(fieldInfo, name, isOptional, isNullable) { }
-}
-public abstract class EventObjectPropertyData : EventPropertyData
-{
-    // 필드
-    public abstract EventValuePropertyDescriptorAttribute EventValuePropertyDescriptor { get; }
-
+    #endregion
+    
     // 생성자
     public EventObjectPropertyData(
-        ReadOnlyMemory<byte> data) : base(data) { }
+        EventPropertyAttribute descriptor, ReadOnlyMemory<byte> data) : base(descriptor, data) { }
 }

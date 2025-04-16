@@ -1,2 +1,0 @@
-namespace Johwa.Event;
-

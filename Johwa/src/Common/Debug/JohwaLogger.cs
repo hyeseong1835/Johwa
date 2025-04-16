@@ -7,10 +7,10 @@ public class JohwaLogger
     public static JohwaLogger? Instance { get; }
 
     public static void Log(
-        LogSeverity severity,
         string message,
         string? detail = null,
-        string? stackTrace = null
+        LogSeverity severity = LogSeverity.Info,
+        bool stackTrace = false
         )
     {
         LogInfo logInfo = new LogInfo
@@ -18,11 +18,11 @@ public class JohwaLogger
             severity = severity,
             message = message,
             detail = detail,
-            stackTrace = stackTrace
+            stackTrace = stackTrace? Environment.StackTrace : null
         };
         Log(logInfo);
     }
-    public static void Log(LogSeverity severity, string message, Exception exception, string? detail = null)
+    public static void Log(string message, LogSeverity severity, Exception exception, string? detail = null)
     {
         LogInfo logInfo = new LogInfo
         {

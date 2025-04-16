@@ -1,14 +1,14 @@
 using System.Text.Json;
+using Johwa.Event.Data;
 using Johwa.Common.Debug;
 using Johwa.Common.Extension.System.Text.Json;
-using Johwa.Event.Data;
 
 namespace Johwa.Event.DispatchEvents;
 
 [DispatchEvent(DispatchEventType.GUILD_CREATE)]
 public class GuildCreateEvent : DispatchEvent
 {
-    public override void Handle(DiscordGatewayClient client, ReadOnlyMemory<byte> dataMemory):
+    public override void Handle(DiscordGatewayClient client, ReadOnlyMemory<byte> dataMemory)
     {
         // 핸들 컨텍스트 얻기
         EventHandleContext<AvailableGuildCreateEventData>? availableEventDataContext = EventHandler<AvailableGuildCreateEventData>.GetContext(client);
@@ -61,17 +61,17 @@ public abstract class GuildCreateEventData : EventDataDocument
     public GuildCreateEventData(byte[] data) : base(data) { }
 
     #region 프로퍼티
+
     #nullable disable
-
-    [DeferredParseValue("id")]
-    public DeferredParseSnowflakeProperty guildId;
-
     /// <summary>
     /// [ unavailable? (boolean) ] <br/>
     /// 길드가 사용 불가능한 상태인지 여부 <br/>
     /// true if this guild is unavailable due to an outage
     /// </summary>
     public bool isUnavailable;
+
+    [EventProperty("id")]
+    public DeferredParseSnowflakeProperty guildId;
 
     #nullable enable
     #endregion
@@ -103,7 +103,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
     /// 봇이 서버에 가입한 시간 <br/>
     /// When this guild was joined at
     /// </summary>
-    [DeferredParseValue("joined_at")]
+    [EventProperty("joined_at")]
     public DeferredParseDateTimeProperty joinedAt;
 
     /// <summary>
@@ -111,7 +111,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
     /// 길드가 "대규모"인지 여부 <br/>
     /// true if this is considered a large guild
     /// </summary>
-    [ImmediateParseBool("large")]
+    [EventProperty("large")]
     public bool isLarge;
 
     /// <summary>

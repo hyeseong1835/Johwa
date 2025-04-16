@@ -112,6 +112,13 @@ public class EventHandler<TData> : IDisposable
         this.isEnabled = isEnabled;
         this.context = AddHandler(gatewayClient, this);
     }
+    // 종료자
+    ~EventHandler()
+    {
+        if (contextList == null) return;
+        
+        Dispose();
+    }
 
     #endregion
 }

@@ -4,14 +4,13 @@ public class EventDataDocumentMetadata : IEventDataContainerMetadata
 {
     #region 재정의
 
-    Type IEventDataGroupMetadata.GroupType => documentType;
-    public EventPropertyDescriptorAttribute[] PropertyDescriptorArray => propertyDescriptorArray;
+    public EventPropertyAttribute[] PropertyDescriptorArray => propertyDescriptorArray;
 
     #endregion
 
     // 필드
     public Type documentType;
-    public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
+    public readonly EventPropertyAttribute[] propertyDescriptorArray;
 
     // 생성자
     public EventDataDocumentMetadata(Type documentType)
@@ -47,7 +46,7 @@ public abstract class EventDataDocument : IEventDataContainer
 
     public readonly EventDataDocumentMetadata metadata;
     public ReadOnlyMemory<byte> data;
-    public readonly List<EventPropertyData> propertyData;
+    public readonly List<EventProperty> propertyData;
 
     #endregion
 

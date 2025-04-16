@@ -19,8 +19,7 @@ public class EventPropertyGroupMetadata : IEventDataGroupMetadata
 
     #region 재정의
 
-    Type IEventDataGroupMetadata.GroupType => dataType;
-    EventPropertyDescriptorAttribute[] IEventDataGroupMetadata.PropertyDescriptorArray => propertyDescriptorArray;
+    EventPropertyAttribute[] IEventDataGroupMetadata.PropertyDescriptorArray => propertyDescriptorArray;
 
     #endregion
 
@@ -28,7 +27,7 @@ public class EventPropertyGroupMetadata : IEventDataGroupMetadata
 
     // 필드
     public readonly Type dataType;
-    public readonly EventPropertyDescriptorAttribute[] propertyDescriptorArray;
+    public readonly EventPropertyAttribute[] propertyDescriptorArray;
 
     // 생성자
     public EventPropertyGroupMetadata(Type dataType)

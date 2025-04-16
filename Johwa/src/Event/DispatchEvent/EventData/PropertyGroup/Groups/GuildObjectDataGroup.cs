@@ -1,4 +1,3 @@
-using Johwa.Common.Debug;
 using Johwa.Event.Data;
 
 public class GuildObjectDataGroup : EventPropertyGroupData
