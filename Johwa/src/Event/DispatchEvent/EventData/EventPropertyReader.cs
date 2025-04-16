@@ -1,6 +1,5 @@
-using System.Text.Json;
-using System.Reflection;
 using Johwa.Common.Debug;
+using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Johwa.Event.Data.PropertyReaders;
@@ -10,7 +9,7 @@ namespace Johwa.Event.Data.PropertyReaders;
 /// <br/>
 /// 항상 EventPropertyReaderAttribute와 함께 사용되어야 합니다. <br/>
 /// 대상 타입에 대해 단 한개만 리더가 존재해야 합니다. <br/>
-/// 단, Johwa 라이브러리에서 정의되었으면 덮어씌워집니다.
+/// 단, Johwa 라이브러리에서 정의된 리더는 덮어씌워질 수 있습니다.
 /// </summary>
 public abstract class EventPropertyReader
 {
@@ -19,10 +18,10 @@ public abstract class EventPropertyReader
     [AttributeUsage(AttributeTargets.Class)]
     protected class EventPropertyReaderAttribute : Attribute
     {
-        public Type propertyType;
-        public EventPropertyReaderAttribute(Type propertyType)
+        public Type fieldType;
+        public EventPropertyReaderAttribute(Type fieldType)
         {
-            this.propertyType = propertyType;
+            this.fieldType = fieldType;
         }
     }
 
@@ -62,7 +61,7 @@ public abstract class EventPropertyReader
                         severity: LogSeverity.Warning, stackTrace: true);
                     continue;
                 }
-                Type propertyType = attribute.propertyType;
+                Type propertyType = attribute.fieldType;
                 
                 // 대상 타입을 정의하는 리더가 이미 존재하면
                 if (dictionary.TryGetValue(propertyType, out EventPropertyReader? originalReader)) 
@@ -134,9 +133,9 @@ public abstract class EventPropertyReader
         }
     }
 
-    public static EventPropertyReader? GetInstance(Type type)
+    public static EventPropertyReader? GetInstance(Type fieldType)
     {
-        Type? findType = type;
+        Type? findType = fieldType;
         while (findType != null)
         {
             EventPropertyReader? result;
@@ -150,5 +149,5 @@ public abstract class EventPropertyReader
     
     #endregion
 
-    public abstract bool TryReadProperty(FieldInfo fieldInfo, IEventDataGroup group, ReadOnlyMemory<byte> data, JsonTokenType tokenType);
+    public abstract bool TryReadProperty(EventPropertyCreateData createData, [NotNullWhen(true)] out EventProperty? property);
 }

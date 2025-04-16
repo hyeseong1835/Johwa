@@ -77,7 +77,7 @@ public class EventHandler<TData> : IDisposable
     #region Instance
 
     // 재정의
-    void IDisposable.Dispose()
+    public void Dispose()
     {
         if (contextList == null) return;
 

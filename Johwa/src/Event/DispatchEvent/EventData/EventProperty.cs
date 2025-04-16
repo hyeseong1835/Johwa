@@ -1,36 +1,32 @@
-using System.Reflection;
-using Johwa.Common.Debug;
+using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
-public abstract class EventPropertyMetadata
+public struct EventPropertyCreateData
 {
-    #region Static
-
-    public static Dictionary<Type, EventPropertyMetadata> instanceDictionary = new();
-
-    #endregion
-
-    public Type propertyType;
-
-    public EventPropertyMetadata(Type propertyType)
+    public IEventDataContainer container;
+    public EventPropertyDescriptor descriptor;
+    public ReadOnlyMemory<byte> data;
+    public JsonTokenType tokenType;
+    
+    public EventPropertyCreateData(IEventDataContainer container,
+        EventPropertyDescriptor descriptor, 
+        ReadOnlyMemory<byte> data, JsonTokenType tokenType)
     {
-        this.propertyType = propertyType;
-
-        if (propertyType.IsAbstract) {
-            JohwaLogger.Log($"{propertyType.Name} (EventPropertyData)는 추상 클래스일 수 없습니다. : {propertyType}",
-                severity: LogSeverity.Warning, stackTrace: true);
-        }
+        this.container = container;
+        this.descriptor = descriptor;
+        this.data = data;
+        this.tokenType = tokenType;
     }
 }
 public abstract class EventProperty : IDisposable
 {
     public class Info
     {
-        public EventPropertyAttribute descriptor;
+        public EventPropertyDescriptor descriptor;
         public ReadOnlyMemory<byte> data;
 
-        public Info(EventPropertyAttribute descriptor, ReadOnlyMemory<byte> data)
+        public Info(EventPropertyDescriptor descriptor, ReadOnlyMemory<byte> data)
         {
             this.descriptor = descriptor;
             this.data = data;
@@ -53,16 +49,6 @@ public abstract class EventProperty : IDisposable
     {
         this.info = info;
     }
-    public abstract EventPropertyMetadata? CreateMetadata(FieldInfo fieldInfo);
 
     #endregion
-}
-public abstract class EventProperty<T> : EventProperty
-{
-    public T value;
-    public override void Init(Info info)
-    {
-        base.Init(info);
-        value = default!;
-    }
 }

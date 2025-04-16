@@ -1,28 +1,35 @@
 using Johwa.Common.Debug;
-using System.Reflection;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Johwa.Event.Data.PropertyReaders;
 
 [EventPropertyReader(typeof(bool))]
 public class BoolPropertyReader : EventPropertyReader
 {
-    public override bool TryReadProperty(FieldInfo fieldInfo, IEventDataGroup group, ReadOnlyMemory<byte> data, JsonTokenType tokenType)
+    public override bool TryReadProperty(EventPropertyCreateData createData, [NotNullWhen(true)] out EventProperty? property)
     {
-        switch (tokenType)
+        switch (createData.tokenType)
         {
-            case JsonTokenType.True:
-                fieldInfo.SetValue(group, true);
-                return true;
+            case JsonTokenType.True: {
+                createData.descriptor.fieldInfo.SetValue(createData.descriptor.group, true);
 
-            case JsonTokenType.False:
-                fieldInfo.SetValue(group, false);
+                property = new EventValueProperty<bool>(createData);
                 return true;
+            }
+            case JsonTokenType.False: {
+                createData.descriptor.fieldInfo.SetValue(createData.descriptor.group, false);
 
-            default:
-                JohwaLogger.Log($"JsonTokenType이 잘못된 형식입니다. : {tokenType}",
+                property = new EventValueProperty<bool>(createData);
+                return true;
+            }
+            default: {
+                JohwaLogger.Log($"JsonTokenType이 잘못된 형식입니다. : {createData.tokenType}",
                     severity: LogSeverity.Error, stackTrace: true);
+                
+                property = null;
                 return false;
+            }
         }
     }
 }

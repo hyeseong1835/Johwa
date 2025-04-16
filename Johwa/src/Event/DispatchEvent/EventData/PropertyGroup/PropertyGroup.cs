@@ -1,6 +1,6 @@
 namespace Johwa.Event.Data;
 
-public class EventPropertyGroupMetadata : IEventDataGroupMetadata
+public class EventPropertyGroupMetadata
 {
     #region Static
 
@@ -17,11 +17,6 @@ public class EventPropertyGroupMetadata : IEventDataGroupMetadata
 
     #endregion
 
-    #region 재정의
-
-    EventPropertyAttribute[] IEventDataGroupMetadata.PropertyDescriptorArray => propertyDescriptorArray;
-
-    #endregion
 
     #region Instance
 
