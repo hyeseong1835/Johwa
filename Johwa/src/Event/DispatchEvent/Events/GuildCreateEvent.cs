@@ -2,6 +2,7 @@ using System.Text.Json;
 using Johwa.Event.Data;
 using Johwa.Common.Debug;
 using Johwa.Common.Extension.System.Text.Json;
+using Johwa.Common;
 
 namespace Johwa.Event.DispatchEvents;
 
@@ -68,10 +69,11 @@ public abstract class GuildCreateEventData : EventDataDocument
     /// 길드가 사용 불가능한 상태인지 여부 <br/>
     /// true if this guild is unavailable due to an outage
     /// </summary>
+    [EventField("unavailable")]
     public bool isUnavailable;
 
-    [EventProperty("id")]
-    public DeferredParseSnowflakeProperty guildId;
+    public Snowflake GuildId
+        => data.GetProperty("id").GetSnowflake();
 
     #nullable enable
     #endregion
@@ -103,7 +105,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
     /// 봇이 서버에 가입한 시간 <br/>
     /// When this guild was joined at
     /// </summary>
-    [EventProperty("joined_at")]
+    [EventField("joined_at")]
     public DeferredParseDateTimeProperty joinedAt;
 
     /// <summary>
@@ -111,7 +113,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
     /// 길드가 "대규모"인지 여부 <br/>
     /// true if this is considered a large guild
     /// </summary>
-    [EventProperty("large")]
+    [EventField("large")]
     public bool isLarge;
 
     /// <summary>

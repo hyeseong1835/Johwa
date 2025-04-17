@@ -6,13 +6,13 @@ public class EventDataDocumentMetadata
 {
     // 필드
     public Type documentType;
-    public readonly EventPropertyDescriptor[] propertyDescriptorArray;
+    public readonly EventFieldDescriptor[] propertyDescriptorArray;
 
     // 생성자
     public EventDataDocumentMetadata(Type documentType)
     {
         this.documentType = documentType;
-        List<EventPropertyDescriptor> result = new();
+        List<EventFieldDescriptor> result = new();
 
         // 필드 정보 가져오기
         FieldInfo[] fields = documentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -21,15 +21,15 @@ public class EventDataDocumentMetadata
             FieldInfo field = fields[i];
 
             // EventPropertyDescriptorAttribute 로드
-            EventPropertyAttribute? propertyAttribute = field.GetCustomAttribute<EventPropertyAttribute>();
+            EventFieldAttribute? propertyAttribute = field.GetCustomAttribute<EventFieldAttribute>();
             if (propertyAttribute != null) {
-                EventPropertyDescriptor descriptor = propertyAttribute.CreateDescriptor(group, field, field.FieldType.IsSubclassOf(typeof(EventProperty)));
+                EventFieldDescriptor descriptor = propertyAttribute.CreateDescriptor(group, field, field.FieldType.IsSubclassOf(typeof(EventField)));
                 result.Add(descriptor);
                 continue;
             }
 
             // EventPropertyGroupDescriptorAttribute 로드
-            EventPropertyGroupAttribute? propertyGroupAttribute = field.GetCustomAttribute<EventPropertyGroupAttribute>();
+            EventDataGroupAttribute? propertyGroupAttribute = field.GetCustomAttribute<EventDataGroupAttribute>();
             if (propertyGroupAttribute != null) {
                 // 메타데이터 로드
                 EventPropertyGroupMetadata metadata = EventPropertyGroupMetadata.GetInstance(groupType);
@@ -41,21 +41,23 @@ public class EventDataDocumentMetadata
     }
 }
 
-public abstract class EventDataDocument : IEventDataContainer
+public abstract class EventDataDocument : IEventDataGroup, IDisposable
 {
     #region 재정의
 
-    // IEventDataContainer
-    ReadOnlyMemory<byte> IEventDataContainer.Data => data;
-    EventPropertyDescriptor[] IEventDataGroup.PropertyDescriptorArray => metadata.propertyDescriptorArray;
-    
     // IDisposable
     void IDisposable.Dispose()
     {
         data = ReadOnlyMemory<byte>.Empty;
 
-        foreach (IDisposable property in propertyData)
+        for (int i = 0; i < fieldSet.Count; i++)
         {
+            EventField field = fieldSet[i];
+            field.Dispose();
+        }
+        for (int i = 0; i < propertySet.Count; i++)
+        {
+            EventProperty property = propertySet[i];
             property.Dispose();
         }
     }
@@ -67,7 +69,8 @@ public abstract class EventDataDocument : IEventDataContainer
 
     public readonly EventDataDocumentMetadata metadata;
     public ReadOnlyMemory<byte> data;
-    public readonly List<EventProperty> propertyData;
+    public readonly EventField[] fieldSet;
+    public readonly List<EventProperty> propertySet;
 
     #endregion
 
@@ -78,7 +81,8 @@ public abstract class EventDataDocument : IEventDataContainer
     {
         this.metadata = GetMetadata();
         this.data = data;
-        this.propertyData = ((IEventDataContainer)this).CreateProperties();
+        this.fieldSet = IEventDataGroup.CreateFieldSet(metadata.documentType, data, metadata.propertyDescriptorArray);
+        this.propertySet = IEventDataGroup.CreatePropertySet(metadata.documentType, data, metadata.propertyDescriptorArray);
     }
 
     #endregion

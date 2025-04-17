@@ -3,30 +3,26 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 
-
-public abstract class EventValueProperty : EventProperty
+public class EventValueProperty : EventField
 {
-    static ConcurrentDictionary<Type, Func<EventPropertyCreateData, EventValueProperty>> constructorDictionary = new();
-    public static EventValueProperty CreateInstance(Type type, EventPropertyCreateData createData)
+    static ConcurrentDictionary<Type, Func<EventFieldCreateData, EventValueProperty>> constructorDictionary = new();
+    public static EventValueProperty CreateInstance(Type type, EventFieldCreateData createData)
     {
         // 생성자 로드 
-        Func<EventPropertyCreateData, EventValueProperty>? constructor;
+        Func<EventFieldCreateData, EventValueProperty>? constructor;
         if (constructorDictionary.TryGetValue(type, out constructor) == false) 
         {
-            // 제네릭 EventValueProperty 타입 생성
-            Type propertyType = typeof(EventValueProperty<>).MakeGenericType(type);
-
             // 생성자 로드
-            ConstructorInfo constructorInfo = propertyType.GetConstructor([ typeof(EventPropertyCreateData) ])!;
+            ConstructorInfo constructorInfo = propertyType.GetConstructor([ typeof(EventFieldCreateData) ])!;
 
             // 파라미터
-            ParameterExpression parameter = Expression.Parameter(typeof(EventPropertyCreateData), "createData");
+            ParameterExpression parameter = Expression.Parameter(typeof(EventFieldCreateData), "createData");
 
             // Expression
             NewExpression expression = Expression.New(constructorInfo, parameter);
 
             // Lambda
-            var lambda = Expression.Lambda<Func<EventPropertyCreateData, EventValueProperty>>(expression);
+            var lambda = Expression.Lambda<Func<EventFieldCreateData, EventValueProperty>>(expression);
             
             // 생성자
             constructor = lambda.Compile();
@@ -35,12 +31,5 @@ public abstract class EventValueProperty : EventProperty
         }
 
         return constructor.Invoke(createData);
-    }
-}
-public class EventValueProperty<T> : EventValueProperty
-{
-    public EventValueProperty(EventPropertyCreateData createData)
-    {
-        
     }
 }

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Johwa.Common.Collection;
 
 public readonly ref struct ValueSet<TValue, TIdValue>

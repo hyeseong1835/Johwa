@@ -13,13 +13,14 @@ public class GuildObjectDataGroup : EventPropertyGroupData
     #region Instance
 
     // 재정의
-    public override EventPropertyGroupMetadata Metadata => metadata ??= EventPropertyGroupMetadata.GetInstance(typeof(GuildObjectDataGroup));
+    public override EventPropertyGroupMetadata Metadata 
+        => metadata ??= EventPropertyGroupMetadata.GetInstance(typeof(GuildObjectDataGroup));
 
     // 필드
 
     // 생성자
     public GuildObjectDataGroup(
-        EventPropertyGroupAttribute descriptor) : base(descriptor) { }
+        EventDataGroupAttribute descriptor) : base(descriptor) { }
 
     #endregion
 }

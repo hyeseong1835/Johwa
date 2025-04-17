@@ -149,5 +149,5 @@ public abstract class EventPropertyReader
     
     #endregion
 
-    public abstract bool TryReadProperty(EventPropertyCreateData createData, [NotNullWhen(true)] out EventProperty? property);
+    public abstract bool TryReadProperty(EventFieldCreateData createData, [NotNullWhen(true)] out EventField? property);
 }

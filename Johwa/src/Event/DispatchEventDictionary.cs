@@ -4,7 +4,7 @@ namespace Johwa.Event;
 
 public class DispatchEventGroupDictionary
 {
-    Dictionary<int, DispatchEventGroup> dictionary;
+    readonly Dictionary<int, DispatchEventGroup> dictionary;
 
     public DispatchEventGroupDictionary()
     {

@@ -9,42 +9,53 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Johwa.Event.Data;
 
-public interface IEventDataContainer : IEventDataGroup
+public class EventDataContainerMetadata
 {
-    #region Static
+    public static Dictionary<Type, EventDataContainerMetadata> instanceDictionary = new Dictionary<Type, EventDataContainerMetadata>();
+    public static EventDataContainerMetadata GetInstance(Type dataType)
+    {
+        if (instanceDictionary.TryGetValue(dataType, out EventDataContainerMetadata? result) == false)
+        {
+            result = new EventDataContainerMetadata(dataType);
+            instanceDictionary[dataType] = result;
+        }
+        return result;
+    }
 
-    #endregion
+    public readonly EventFieldDescriptor[] propertyDescriptorArray;
 
+    public EventDataContainerMetadata(Type dataType)
+    {
+        this.propertyDescriptorArray = IEventDataGroupMetadata.LoadPropertyDescriptors(dataType);
+    }
+}
 
+public abstract class EventDataContainer : IEventDataGroup
+{
     #region Instance
 
-    #region 재정의
+    public EventDataContainerMetadata metadata;
+    public List<EventField> fieldSet = new();
 
+    public ReadOnlyMemory<byte> data;
 
-    #endregion
-
-    public ReadOnlyMemory<byte> Data { get; }
-
-    public List<EventProperty> CreateProperties()
+    public List<EventField> CreatePropertySet()
     {
-        EventPropertyDescriptor[] propertyDescriptorArray = PropertyDescriptorArray;
-
-        ReadOnlyMemory<byte> dataMemory = Data;
-        ReadOnlySpan<byte> dataSpan = dataMemory.Span;
+        ReadOnlySpan<byte> dataSpan = data.Span;
 
         // 결과 초기화
-        List<EventProperty> result = new(propertyDescriptorArray.Length);
+        List<EventField> result = new(metadata.propertyDescriptorArray.Length);
 
         // Json 읽기
         Utf8JsonReader jsonReader = new(dataSpan);
         
         // 노드 버퍼 (스택)
-        Span<ValueSet<EventPropertyDescriptor, ReadOnlyMemory<byte>>.LinkedListNode> nodeBuffer 
-            = stackalloc ValueSet<EventPropertyDescriptor, ReadOnlyMemory<byte>>.LinkedListNode[propertyDescriptorArray.Length];
+        Span<ValueSet<EventFieldDescriptor, ReadOnlyMemory<byte>>.LinkedListNode> nodeBuffer 
+            = stackalloc ValueSet<EventFieldDescriptor, ReadOnlyMemory<byte>>.LinkedListNode[metadata.propertyDescriptorArray.Length];
 
         // 프로퍼티 탐색을 위한 세트 생성
-        ValueSet<EventPropertyDescriptor, ReadOnlyMemory<byte>> propertyDescriptorSet 
-            = new(new ReadOnlyMemory<EventPropertyDescriptor>(propertyDescriptorArray), nodeBuffer);
+        ValueSet<EventFieldDescriptor, ReadOnlyMemory<byte>> propertyDescriptorSet 
+            = new(new ReadOnlyMemory<EventFieldDescriptor>(metadata.propertyDescriptorArray), nodeBuffer);
 
         // 프로퍼티 이름 버퍼 대여
         byte[] propertyNameBuffer = ArrayPool<byte>.Shared.Rent(64);
@@ -61,9 +72,9 @@ public interface IEventDataContainer : IEventDataGroup
                 valueSpan.CopyTo(propertyNameBuffer);
 
                 // 프로퍼티 메타데이터 탐색
-                EventPropertyDescriptor? propertyDescriptor;
+                EventFieldDescriptor? propertyDescriptor;
                 ReadOnlyMemory<byte> propertyName = new(propertyNameBuffer, 0, valueSpan.Length);
-                if (propertyDescriptorSet.TryExtractValue(propertyName, out propertyDescriptor, EventPropertyDescriptor.IsNameMatch) == false) {
+                if (propertyDescriptorSet.TryExtractValue(propertyName, out propertyDescriptor, EventFieldDescriptor.IsNameMatch) == false) {
                     // 프로퍼티 Descriptor를 찾을 수 없을 경우 예외 발생
                     JohwaLogger.Log($"이벤트 프로퍼티 '{Encoding.ASCII.GetString(propertyName.Span)}'를 찾을 수 없습니다.",
                         severity: LogSeverity.Warning, stackTrace: true);
@@ -84,13 +95,13 @@ public interface IEventDataContainer : IEventDataGroup
                 JsonTokenType propertyDataTokenType = jsonReader.TokenType;
                 
                 // 프로퍼티 데이터 자르기
-                ReadOnlyMemory<byte> propertyJsonData = jsonReader.ReadAndSliceToken(dataMemory);
+                ReadOnlyMemory<byte> propertyJsonData = jsonReader.ReadAndSliceToken(data);
 
                 // 프로퍼티 생성 데이터
-                EventPropertyCreateData propertyCreateData = new(this, propertyDescriptor, propertyJsonData, propertyDataTokenType);
+                EventFieldCreateData propertyCreateData = new(data, propertyDescriptor, propertyJsonData, propertyDataTokenType);
 
                 // 프로퍼티 생성
-                EventProperty? property = null;
+                EventField? property = null;
                 if (CreateProperty(propertyCreateData, out property) == false)
                     continue;
 
@@ -98,13 +109,13 @@ public interface IEventDataContainer : IEventDataGroup
             }
 
             // Json에서 찾지 못한 프로퍼티 초기화
-            foreach (EventPropertyDescriptor propertyDescriptor in propertyDescriptorSet.GetEnumerable())
+            foreach (EventFieldDescriptor propertyDescriptor in propertyDescriptorSet.GetEnumerable())
             {
                 // 파라미터로 넘겨줄 데이터 : 이름이 비었으면 전체 데이터 전달
-                ReadOnlyMemory<byte> propertyDataMemory = (propertyDescriptor.name == null)? dataMemory : ReadOnlyMemory<byte>.Empty;
+                ReadOnlyMemory<byte> propertyDataMemory = (propertyDescriptor.name == null)? data : ReadOnlyMemory<byte>.Empty;
 
                 // 프로퍼티 생성
-                EventPropertyCreateData propertyCreateData = new(this, propertyDescriptor, propertyDataMemory, JsonTokenType.None);
+                EventFieldCreateData propertyCreateData = new(this, propertyDescriptor, propertyDataMemory, JsonTokenType.None);
 
                 // 프로퍼티 리더
                 EventPropertyReader? propertyReader = EventPropertyReader.GetInstance(propertyCreateData.descriptor.fieldInfo.FieldType);
@@ -116,7 +127,7 @@ public interface IEventDataContainer : IEventDataGroup
                 }
 
                 // 프로퍼티 생성
-                if (propertyReader.TryReadProperty(propertyCreateData, out EventProperty? propertyData) == false) {
+                if (propertyReader.TryReadProperty(propertyCreateData, out EventField? propertyData) == false) {
                     JohwaLogger.Log($"프로퍼티 생성에 실패했습니다.",
                         severity: LogSeverity.Warning, stackTrace: true);
 
@@ -134,7 +145,7 @@ public interface IEventDataContainer : IEventDataGroup
         
         return result;
 
-        static bool CreateProperty(EventPropertyCreateData createData, [NotNullWhen(true)] out EventProperty? property)
+        static bool CreateProperty(EventFieldCreateData createData, [NotNullWhen(true)] out EventField? property)
         {
             if (createData.descriptor.isFieldTypeEventProperty)
             {
@@ -188,4 +199,17 @@ public interface IEventDataContainer : IEventDataGroup
     }
 
     #endregion
+
+    public EventDataContainer(ReadOnlyMemory<byte> data)
+    {
+        this.data = data;
+        this.metadata = GetMetadata();
+        this.fieldSet = CreatePropertySet();
+    }
+
+    public T GetValue<T>(string propertyName)
+        where T : EventField
+    {
+        
+    }
 }

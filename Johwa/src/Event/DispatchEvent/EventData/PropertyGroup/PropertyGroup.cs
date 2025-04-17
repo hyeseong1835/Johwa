@@ -22,7 +22,9 @@ public class EventPropertyGroupMetadata
 
     // 필드
     public readonly Type dataType;
-    public readonly EventPropertyAttribute[] propertyDescriptorArray;
+    public readonly EventFieldDescriptor[] propertyDescriptorArray;
+    public readonly EventDataGroupAttribute[] propertyGroupAttributeArray;
+    public IEnumerable<EventFieldDescriptor>[] 
 
     // 생성자
     public EventPropertyGroupMetadata(Type dataType)
@@ -33,21 +35,21 @@ public class EventPropertyGroupMetadata
 
     #endregion
 }
-public class EventPropertyGroupAttribute : Attribute
+public class EventDataGroupAttribute : Attribute
 {
     // 필드
     public EventPropertyGroupMetadata? metadata;
 
     // 생성자
-    public EventPropertyGroupAttribute() { }
+    public EventDataGroupAttribute() { }
 }
 public abstract class EventPropertyGroupData
 {
     // 필드
     public abstract EventPropertyGroupMetadata Metadata { get; }
-    public EventPropertyGroupAttribute descriptor;
+    public EventDataGroupAttribute descriptor;
 
-    public EventPropertyGroupData(EventPropertyGroupAttribute descriptor)
+    public EventPropertyGroupData(EventDataGroupAttribute descriptor)
     {
         this.descriptor = descriptor;
     }
