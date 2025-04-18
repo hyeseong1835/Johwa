@@ -22,7 +22,9 @@ public class EventDataContainerMetadata
         return result;
     }
 
-    public readonly EventFieldDescriptor[] propertyDescriptorArray;
+    public EventFieldDescriptor[] fieldDescriptorArray;
+    public EventPropertyDescriptor[] propertyDescriptorArray;
+    public EventDataGroupDescriptor[] dataGroupDescriptorArray;
 
     public EventDataContainerMetadata(Type dataType)
     {
@@ -35,7 +37,9 @@ public abstract class EventDataContainer : IEventDataGroup
     #region Instance
 
     public EventDataContainerMetadata metadata;
-    public List<EventField> fieldSet = new();
+    public EventFieldSet fieldSet;
+    public EventPropertySet propertySet;
+    public EventDataGroupSet dataGroupSet;
 
     public ReadOnlyMemory<byte> data;
 
@@ -95,7 +99,7 @@ public abstract class EventDataContainer : IEventDataGroup
                 JsonTokenType propertyDataTokenType = jsonReader.TokenType;
                 
                 // 프로퍼티 데이터 자르기
-                ReadOnlyMemory<byte> propertyJsonData = jsonReader.ReadAndSliceToken(data);
+                ReadOnlyMemory<byte> propertyJsonData = jsonReader.ReadAndSliceValue(data);
 
                 // 프로퍼티 생성 데이터
                 EventFieldCreateData propertyCreateData = new(data, propertyDescriptor, propertyJsonData, propertyDataTokenType);
@@ -204,7 +208,7 @@ public abstract class EventDataContainer : IEventDataGroup
     {
         this.data = data;
         this.metadata = GetMetadata();
-        this.fieldSet = CreatePropertySet();
+        this.fieldSet = CreatePropertySet(data,  out fieldSet, out propertySet, out dataGroupSet);
     }
 
     public T GetValue<T>(string propertyName)
@@ -212,4 +216,122 @@ public abstract class EventDataContainer : IEventDataGroup
     {
         
     }
+
+    public void CreateData(
+        out EventFieldSet fieldSet, out EventPropertySet propertySet, out EventDataGroupSet dataGroupSet)
+    {
+        // 그룹 데이터
+        dataGroupSet = new EventDataGroupSet(metadata.dataGroupDescriptorArray);
+
+        // 필드 데이터
+        fieldSet = new EventFieldSet(metadata.fieldDescriptorArray);
+
+        ValueSet<EventFieldDescriptor, EventFieldDescriptor.NameId> fieldDescriptorSet = new (
+            new ReadOnlyMemory<EventFieldDescriptor>(metadata.fieldDescriptorArray), 
+            stackalloc ValueSet<EventFieldDescriptor, EventFieldDescriptor.NameId>.LinkedListNode[metadata.fieldDescriptorArray.Length]
+        );
+
+        // 프로퍼티 데이터
+        propertySet = new EventPropertySet(metadata.propertyDescriptorArray);
+
+        ValueSet<EventPropertyDescriptor, EventPropertyDescriptor.NameId> propertyDescriptorSet = new (
+            new ReadOnlyMemory<EventPropertyDescriptor>(metadata.propertyDescriptorArray), 
+            stackalloc ValueSet<EventPropertyDescriptor, EventPropertyDescriptor.NameId>.LinkedListNode[metadata.propertyDescriptorArray.Length]
+        );
+
+
+        // Json 읽기
+        ReadOnlySpan<byte> dataSpan = data.Span;
+        Utf8JsonReader jsonReader = new(dataSpan);
+
+        while (jsonReader.Read())
+        {
+            // 이름만 필터링
+            if (jsonReader.TokenType != JsonTokenType.PropertyName) continue;
+
+            // 데이터 이름
+            ReadOnlySpan<byte> jsonDataNameSpan = jsonReader.ValueSpan;
+
+
+            // 프로퍼티 탐색
+            EventPropertyDescriptor.NameId propertyNameId = new (jsonDataNameSpan);
+
+            if (propertyDescriptorSet.TryExtractValue(propertyNameId, 
+                out EventPropertyDescriptor? propertyDescriptor, EventPropertyDescriptor.NameId.IsNameMatch)) 
+            {
+                // 불가능한 오류 (컴파일러 안심)
+                if (propertyDescriptor == null) throw new NullReferenceException("불가능한 오류");
+
+                // 값으로 이동
+                jsonReader.Read();
+
+                // 값 읽기
+                JsonTokenType valueTokenType = jsonReader.TokenType;
+                ReadOnlyMemory<byte> jsonData = jsonReader.ReadAndSliceValue(in data);
+
+                // 프로퍼티 생성
+                EventProperty property = new EventProperty(this, propertyDescriptor, jsonData, valueTokenType);
+                
+                // 세트에 추가
+                propertySet.Add(property);
+                continue;
+            }
+
+
+            // 필드 탐색
+            EventFieldDescriptor.NameId fieldNameId = new (jsonDataNameSpan);
+
+            if (fieldDescriptorSet.TryExtractValue(fieldNameId, 
+                out EventFieldDescriptor? fieldDescriptor, EventFieldDescriptor.NameId.IsNameMatch)) 
+            {
+                // 불가능한 오류 (컴파일러 안심)
+                if (fieldDescriptor == null) throw new NullReferenceException("불가능한 오류");
+                
+                // 값으로 이동
+                jsonReader.Read();
+
+                // 값 읽기
+                JsonTokenType valueTokenType = jsonReader.TokenType;
+                ReadOnlyMemory<byte> jsonData = jsonReader.ReadAndSliceValue(in data);
+
+                // 필드 생성 정보
+                EventField.CreateData createData = new (this, fieldDescriptor, jsonData, jsonReader.TokenType);
+
+                // 필드 생성
+                EventField? field = EventField.CreateInstance(createData);
+                if (field == null) continue;
+                
+                // 세트에 추가
+                fieldSet.Add(field);
+            }
+
+
+            // 데이터 그룹 탐색
+            EventDataGroupDescriptor.NameId dataGroupNameId = new (jsonDataNameSpan);
+        }
+        
+
+
+        for (int i = 0; i < fieldDescriptorArray.Length; i++)
+        {
+            EventFieldDescriptor descriptor = fieldDescriptorArray[i];
+
+            // 생성 정보
+            EventField.CreateData createData = new (declaringObject, groupType, descriptor, data, tokenType);
+
+            // 필드 생성
+            EventField? field = EventField.CreateInstance(createData);
+            if (field == null) {
+                JohwaLogger.Log($"EventFieldData ({descriptor.fieldInfo.FieldType}) 생성에 실패하였습니다.",
+                    severity: LogSeverity.Warning, stackTrace: true);
+                Array.Resize(ref fieldSet, fieldSet.Length - 1);
+                i--;
+                continue;
+            }
+            fieldSet[i] = field;
+        }
+
+        return fieldSet;
+    }
+    
 }

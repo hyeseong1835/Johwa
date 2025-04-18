@@ -11,11 +11,11 @@ public class BoolField : EventField
         switch (createData.tokenType)
         {
             case JsonTokenType.True: {
-                createData.descriptor.fieldInfo.SetValue(createData.declaringObject, true);
+                createData.descriptor.fieldInfo.SetValue(createData.declaringGroup, true);
                 break;
             }
             case JsonTokenType.False: {
-                createData.descriptor.fieldInfo.SetValue(createData.declaringObject, false);
+                createData.descriptor.fieldInfo.SetValue(createData.declaringGroup, false);
                 break;
             }
             default: {

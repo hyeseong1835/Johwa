@@ -12,7 +12,7 @@ public class StringField : EventField
         {
             case JsonTokenType.String: {
                 string value = createData.data.Span.ToString();
-                createData.descriptor.fieldInfo.SetValue(createData.declaringObject, value);
+                createData.descriptor.fieldInfo.SetValue(createData.declaringGroup, value);
                 break;
             }
             default: {

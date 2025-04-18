@@ -59,14 +59,46 @@ public static class Utf8JsonReaderExtension
         return false;
     }
     
-    public static ReadOnlyMemory<byte> ReadAndSliceToken(this ref Utf8JsonReader reader, ReadOnlyMemory<byte> originalJson)
+    /// <summary>
+    /// # StartObject, StartArray <br/>
+    /// - EndObject, EndArray로 이동함. <br/>
+    /// <br/>
+    /// # 나머지 타입 <br/>
+    /// - 움직이지 않음
+    /// </summary>
+    /// <param name="reader"></param>
+    /// <param name="originalJson"></param>
+    /// <returns></returns>
+    public static ReadOnlyMemory<byte> ReadAndSliceValue(this ref Utf8JsonReader reader, in ReadOnlyMemory<byte> originalJson)
     {
+        // 값 시작 위치 기록
         int start = (int)reader.TokenStartIndex;
 
-        reader.Skip(); // 객체 Skip 
+        // 다음 값으로 이동
+        switch (reader.TokenType)
+        {
+            // 다중 값 타입
+            case JsonTokenType.StartObject:
+            case JsonTokenType.StartArray: 
+            {
+                // 객체 Skip 
+                reader.Skip(); 
 
-        int end = (int)reader.BytesConsumed;
+                // 값 끝 위치 기록
+                int end = (int)reader.BytesConsumed;
 
-        return originalJson.Slice(start, end - start);
+                // 원본 자르기
+                return originalJson.Slice(start, end - start);
+            }
+
+            // 단일 값 타입
+            default: 
+            {
+                // 원본 자르기
+                return originalJson.Slice(start, reader.ValueSpan.Length);
+            }
+        }
+
+        
     }
 }

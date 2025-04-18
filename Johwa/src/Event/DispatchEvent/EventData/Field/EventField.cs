@@ -22,16 +22,16 @@ public abstract class EventField : IDisposable
 
     public struct CreateData
     {
-        public object declaringObject;
+        public IEventDataGroup declaringGroup;
         public EventFieldDescriptor descriptor;
         public ReadOnlyMemory<byte> data;
         public JsonTokenType tokenType;
         
-        public CreateData(object declaringObject,
+        public CreateData(IEventDataGroup declaringGroup,
             EventFieldDescriptor descriptor, 
             ReadOnlyMemory<byte> data, JsonTokenType tokenType)
         {
-            this.declaringObject = declaringObject;
+            this.declaringGroup = declaringGroup;
             this.descriptor = descriptor;
             this.data = data;
             this.tokenType = tokenType;
@@ -43,7 +43,34 @@ public abstract class EventField : IDisposable
 
     #region Static
 
+    // 필드
     static Dictionary<Type, Func<CreateData, EventField>> constructorDictionary = CreateConstructorDictionary();
+
+    #region 메서드
+
+    /// <summary>
+    /// 캐시된 생성자를 찾거나 새로 캐시하여 실행합니다. <br/>
+    /// <br/>
+    /// [ 로그 ]
+    /// EventField의 생성자를 찾을 수 없습니다. : {fieldType} <br/>
+    /// </summary>
+    /// <param name="createData"></param>
+    /// <returns></returns>
+    public static EventField? CreateInstance(CreateData createData)
+    {
+        Type fieldType = createData.descriptor.fieldInfo.FieldType;
+
+        Func<CreateData, EventField>? constructor = GetConstructor(fieldType);
+        if (constructor == null) {
+            JohwaLogger.Log($"EventField의 생성자를 찾을 수 없습니다. : {fieldType}",
+                severity: LogSeverity.Warning, stackTrace: true);
+            return null;
+        }
+
+        return constructor.Invoke(createData);
+    }
+
+
     static Dictionary<Type, Func<CreateData, EventField>> CreateConstructorDictionary()
     {
         Dictionary<Type, Func<CreateData, EventField>> dictionary = new();
@@ -175,19 +202,7 @@ public abstract class EventField : IDisposable
         return constructor;
     }
     
-    public static EventField? CreateField(CreateData createData)
-    {
-        Type fieldType = createData.descriptor.fieldInfo.FieldType;
-
-        Func<CreateData, EventField>? constructor = GetConstructor(fieldType);
-        if (constructor == null) {
-            JohwaLogger.Log($"EventField의 생성자를 찾을 수 없습니다. : {fieldType}",
-                severity: LogSeverity.Warning, stackTrace: true);
-            return null;
-        }
-
-        return constructor.Invoke(createData);
-    }
+    #endregion
 
     #endregion
 
@@ -196,6 +211,20 @@ public abstract class EventField : IDisposable
 
     // 재정의 (IDisposable)
     public virtual void Dispose() {}
+
+    // 생성자
+    /// <summary>
+    /// 직접 사용하지 말 것
+    /// </summary>
+    /// <param name="createData"></param>
+    /// <exception cref="InvalidOperationException"></exception>
+    public EventField(CreateData createData)
+    {
+        // 필드 타입이 아니면 예외
+        if (createData.descriptor.isFieldTypeEventProperty == false) {
+            throw new InvalidOperationException($"EventField는 필드 타입이 아닙니다. : {createData.descriptor.name}");
+        }
+    }
 
     #endregion
 }

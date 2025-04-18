@@ -32,8 +32,8 @@ public class EventDataDocumentMetadata
             EventDataGroupAttribute? propertyGroupAttribute = field.GetCustomAttribute<EventDataGroupAttribute>();
             if (propertyGroupAttribute != null) {
                 // 메타데이터 로드
-                EventPropertyGroupMetadata metadata = EventPropertyGroupMetadata.GetInstance(groupType);
-                result.AddRange(metadata.propertyDescriptorArray);
+                EventDataGroupMetadata metadata = EventDataGroupMetadata.GetInstance(groupType);
+                result.AddRange(metadata.subFieldDescriptorArray);
                 continue;
             }
         }

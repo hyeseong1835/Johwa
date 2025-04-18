@@ -1,11 +1,11 @@
 using Johwa.Event.Data;
 
-public class GuildObjectDataGroup : EventPropertyGroupData
+public class GuildObjectDataGroup : EventDataGroupData
 {
     #region Static
 
     // 필드
-    public static EventPropertyGroupMetadata? metadata;
+    public static EventDataGroupMetadata? metadata;
 
     #endregion
 
@@ -13,8 +13,8 @@ public class GuildObjectDataGroup : EventPropertyGroupData
     #region Instance
 
     // 재정의
-    public override EventPropertyGroupMetadata Metadata 
-        => metadata ??= EventPropertyGroupMetadata.GetInstance(typeof(GuildObjectDataGroup));
+    public override EventDataGroupMetadata Metadata 
+        => metadata ??= EventDataGroupMetadata.GetInstance(typeof(GuildObjectDataGroup));
 
     // 필드
 
