@@ -1,7 +1,4 @@
-using System.Text.Json;
 using System.Reflection;
-using Johwa.Common.Debug;
-using Johwa.Common.Collection;
 
 namespace Johwa.Event.Data;
 
@@ -60,13 +57,5 @@ public interface IEventDataGroup
     }
 
     
-    #endregion
-
-
-    #region Instance
-
-    public int FieldDescriptorCount { get; }
-    public int PropertyDescriptorCount { get; }
-
     #endregion
 }

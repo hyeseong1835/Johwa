@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace Johwa.Event.Data;
 
-public class EventPropertyDescriptor
+public class EventPropertyDescriptor : EventDataDescriptor
 {
     #region Object
 

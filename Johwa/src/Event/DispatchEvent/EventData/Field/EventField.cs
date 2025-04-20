@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Johwa.Event.Data;
 
-public abstract class EventField : IDisposable
+public abstract class EventField : EventData
 {
     #region Object
 
@@ -208,9 +208,6 @@ public abstract class EventField : IDisposable
 
 
     #region Instance
-
-    // 재정의 (IDisposable)
-    public virtual void Dispose() {}
 
     // 생성자
     /// <summary>

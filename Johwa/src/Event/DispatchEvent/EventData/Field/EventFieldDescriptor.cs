@@ -1,9 +1,8 @@
 using System.Reflection;
-using Johwa.Common.Debug;
 
 namespace Johwa.Event.Data;
 
-public class EventFieldDescriptor
+public class EventFieldDescriptor : EventDataDescriptor
 {
     #region Object
 

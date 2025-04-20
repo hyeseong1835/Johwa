@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
-public class EventProperty : IDisposable
+public class EventProperty : EventData
 {
     #region Static
 
@@ -12,15 +12,15 @@ public class EventProperty : IDisposable
 
     #region Instance
 
-    // 재정의 (IDisposable)
-    public virtual void Dispose() { }
+    // 필드
+    public EventPropertyDescriptor descriptor;
 
     // 생성자
     public EventProperty(object declaringObject,
             EventPropertyDescriptor descriptor, 
             ReadOnlyMemory<byte> data, JsonTokenType tokenType)
     {
-        
+        this.descriptor = descriptor;
     }
 
 

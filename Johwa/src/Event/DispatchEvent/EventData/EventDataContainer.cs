@@ -11,6 +11,8 @@ namespace Johwa.Event.Data;
 
 public class EventDataContainerMetadata
 {
+    #region Static
+
     public static Dictionary<Type, EventDataContainerMetadata> instanceDictionary = new Dictionary<Type, EventDataContainerMetadata>();
     public static EventDataContainerMetadata GetInstance(Type dataType)
     {
@@ -22,6 +24,12 @@ public class EventDataContainerMetadata
         return result;
     }
 
+    #endregion
+
+
+    #region Instance
+
+    public EventDataDescriptorDictionary dataDescriptorDictionary = new();
     public EventFieldDescriptor[] fieldDescriptorArray;
     public EventPropertyDescriptor[] propertyDescriptorArray;
     public EventDataGroupDescriptor[] dataGroupDescriptorArray;
@@ -30,6 +38,34 @@ public class EventDataContainerMetadata
     {
         this.propertyDescriptorArray = IEventDataGroupMetadata.LoadPropertyDescriptors(dataType);
     }
+
+    public IEnumerable<EventDataDescriptor> GetEventDataDescriptorEnumerable()
+    {
+        // 필드
+        for (int i = 0; i < fieldDescriptorArray.Length; i++)
+        {
+            yield return fieldDescriptorArray[i];
+        }
+
+        // 프로퍼티
+        for (int i = 0; i < propertyDescriptorArray.Length; i++)
+        {
+            yield return propertyDescriptorArray[i];
+        }
+
+        // 그룹
+        for (int i = 0; i < dataGroupDescriptorArray.Length; i++)
+        {
+            EventDataGroupDescriptor descriptor = dataGroupDescriptorArray[i];
+            foreach (EventDataDescriptor dataDescriptor in descriptor.GetEventDataDescriptorEnumerable())
+            {
+                yield return dataDescriptor;
+            }
+        }
+    }
+
+
+    #endregion
 }
 
 public abstract class EventDataContainer : IEventDataGroup
@@ -210,6 +246,7 @@ public abstract class EventDataContainer : IEventDataGroup
         this.metadata = GetMetadata();
         this.fieldSet = CreatePropertySet(data,  out fieldSet, out propertySet, out dataGroupSet);
     }
+
 
     public T GetValue<T>(string propertyName)
         where T : EventField
