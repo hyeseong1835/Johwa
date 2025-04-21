@@ -87,180 +87,6 @@ public class EventDataDescriptorDictionary
             this.nameCount = nameCount;
         }
     }
-    public class TreeNodeRoot
-    {
-        public TreeNode[]? branchArray;
-        public EventDataDescriptor? value;
-
-        public TreeNodeRoot(EventDataDescriptor[] descriptorArray, int keyByteTypeCount)
-        {
-            // 비었음
-            if (descriptorArray.Length == 0)
-            {
-                branchArray = null;
-                value = null;
-                return;
-            }
-
-            // 단 한 개만 존재하는 경우
-            if (descriptorArray.Length == 1)
-            {
-                EventDataDescriptor descriptor = descriptorArray[0];
-                string name = descriptor.Name;
-
-                // 이름 길이 0
-                if (name.Length == 0)
-                {
-                    branchArray = null;
-                    value = null;
-                    return;
-                }
-
-                branchArray = null;
-                value = descriptor;
-                return;
-            }
-
-
-            // 공용 노드 탐색 세트
-            int maxBranchCount = Math.Min(keyByteTypeCount, descriptorArray.Length);
-            TreeNodeFindData.Set sharedNodeFindDataSet = new (stackalloc TreeNodeFindData[maxBranchCount], 0);
-
-
-            // 설명자 탐색
-            for (int i = 0; i < descriptorArray.Length; i++)
-            {
-                EventDataDescriptor descriptor = descriptorArray[i];
-                if (descriptor.Name.Length == 0) continue;
-
-                // 브랜치 탐색 데이터 생성
-                TreeNodeFindData branchFindData = new TreeNodeFindData((byte)descriptor.Name[0]);
-
-                sharedNodeFindDataSet.Add(branchFindData);
-            }
-
-            // 탐색 결과 추출
-            TreeNodeFindData.Set branchFindDataSet = sharedNodeFindDataSet.ExtractSet(stackalloc TreeNodeFindData[sharedNodeFindDataSet.byteTypeCount], 0);
-
-            // 모두 값이 없으면 모두 null
-            if (branchFindDataSet.ByteTypeCount == 0)
-            {
-                branchArray = null;
-                value = null;
-                return;
-            }
-
-            // 바이트 종류가 하나이면 
-            if (branchFindDataSet.ByteTypeCount == 1)
-            {
-                TreeNodeFindData branchFindData = branchFindDataSet[0];
-                byte keyByte = branchFindData.keyByte;
-                int nameCount = branchFindData.nameCount;
-
-                // 하위 트리 생성
-                TreeNode node = new TreeNode(descriptorArray, keyByte, 1, ref sharedNodeFindDataSet);
-                for (int i = 0; i < descriptorArray.Length; i++)
-                {
-                    EventDataDescriptor descriptor = descriptorArray[i];
-                    string name = descriptor.Name;
-                    if (name[0] == keyByte)
-                    {
-                        sharedNodeFindDataSet.AddValue(descriptor);
-                    }
-                }
-
-                branchArray = [ node ];
-                return;
-            }
-
-
-
-            // 깊이 1 노드들 중 가장 많은 노드 수 찾기
-            int maxBranchNodeCount = 0;
-            for (int branchFindDataIndex = 0; branchFindDataIndex < branchFindDataSet.ByteTypeCount; branchFindDataIndex++)
-            {
-                ref TreeNodeFindData branchFindData = ref branchFindDataSet[branchFindDataIndex];
-                int nameCount = branchFindData.nameCount;
-
-                // 할당
-                if (maxBranchNodeCount < nameCount)
-                {
-                    maxBranchNodeCount = nameCount;
-                }
-            }
-
-            // 브랜치에서 공유할 설명자 세트 생성
-            ArrayIndexSet<EventDataDescriptor> descriptorIndexSet = new ArrayIndexSet<EventDataDescriptor>(descriptorArray, maxBranchNodeCount);
-
-            // 하위 노드 배열 생성
-            branchArray = new TreeNode[branchFindDataSet.ByteTypeCount];
-            for (int branchIndex = 0; branchIndex < branchArray.Length; branchIndex++)
-            {
-                ref TreeNodeFindData branchFindData = ref branchFindDataSet[branchIndex];
-
-                // 설명자 세트 초기화
-                descriptorIndexSet.Reset(branchFindData.nameCount);
-                for (int descriptorIndex = 0; descriptorIndex < descriptorArray.Length; descriptorIndex++)
-                {
-                    EventDataDescriptor descriptor = descriptorArray[descriptorIndex];
-
-                    // 시작 바이트가 키와 같으면 추가
-                    if (descriptor.Name[0] == branchFindData.keyByte)
-                    {
-                        // 추가
-                        descriptorIndexSet.Add(descriptorIndex);
-
-                        // 전부 찾으면 break
-                        if (branchFindData.nameCount == descriptorIndexSet.Count)
-                            break;
-                    }
-                }
-
-                // 공용 탐색 세트 초기화
-                sharedNodeFindDataSet.Reset(1);
-                for (int i = 0; i < descriptorIndexSet.Count; i++)
-                {
-                    EventDataDescriptor descriptor = descriptorIndexSet[i];
-                    if (descriptor.Name.Length <= 1) continue;
-
-                    // 세트에 추가
-                    TreeNodeFindData nodeFindData = new TreeNodeFindData((byte)descriptor.Name[1]);
-                    sharedNodeFindDataSet.Add(nodeFindData);
-                }
-
-                // 하위 트리 생성
-                TreeNode node = new TreeNode(desciptorIndexSet, keyByte, 1, ref sharedNodeFindDataSet);
-                for (int i = 0; i < descriptorArray.Length; i++)
-                {
-                    EventDataDescriptor descriptor = descriptorArray[i];
-                    string name = descriptor.Name;
-                    if (name[0] == keyByte)
-                    {
-                        sharedNodeFindDataSet.AddValue(descriptor);
-                    }
-                }
-
-                for (int i = 0; i < sharedNodeFindDataSet.ByteTypeCount; i++)
-                {
-                    ref TreeNodeFindData nodeFindData = ref sharedNodeFindDataSet[i];
-                    byte keyByte = nodeFindData.keyByte;
-                    int nameCount2 = nodeFindData.nameCount;
-                }
-            }
-
-            int branchCount;
-            for (int i = 0; i < descriptorArray.Length; i++)
-            {
-                EventDataDescriptor descriptor = descriptorArray[i];
-                string name = descriptor.Name;
-            }
-            this.branchArray = branchArray;
-
-
-            // 하위 노드 탐색
-            
-        }
-    }
     
     public class TreeNode
     {
@@ -315,11 +141,6 @@ public class EventDataDescriptorDictionary
                 0
             );
 
-            // 모두 길이가 0 -> null
-            if (depth1FindDataSet.ByteTypeCount == 0) {
-                return null;
-            }
-
             // 바이트 종류가 하나이면 
             if (depth1FindDataSet.ByteTypeCount == 1)
             {
@@ -334,72 +155,19 @@ public class EventDataDescriptorDictionary
                 );
             }
 
-            // 브랜치에서 공유할 설명자 세트 생성
-            ArrayIndexSet<EventDataDescriptor> descriptorIndexSet = new ArrayIndexSet<EventDataDescriptor>(descriptorArray, maxBranchNodeCount);
-
-            // 하위 노드 배열 생성
-            branchArray = new TreeNode[depth1FindDataSet.ByteTypeCount];
-            for (int branchIndex = 0; branchIndex < branchArray.Length; branchIndex++)
+            TreeNode[] branchArray = new TreeNode[depth1FindDataSet.ByteTypeCount];
+            for (int i = 0; i < depth1FindDataSet.ByteTypeCount; i++)
             {
-                ref TreeNodeFindData branchFindData = ref depth1FindDataSet[branchIndex];
+                ref TreeNodeFindData depth1FindData = ref depth1FindDataSet[i];
+                byte keyByte = depth1FindData.keyByte;
 
-                // 설명자 세트 초기화
-                descriptorIndexSet.Reset(branchFindData.nameCount);
-                for (int descriptorIndex = 0; descriptorIndex < descriptorArray.Length; descriptorIndex++)
-                {
-                    EventDataDescriptor descriptor = descriptorArray[descriptorIndex];
-
-                    // 시작 바이트가 키와 같으면 추가
-                    if (descriptor.Name[0] == branchFindData.keyByte)
-                    {
-                        // 추가
-                        descriptorIndexSet.Add(descriptorIndex);
-
-                        // 전부 찾으면 break
-                        if (branchFindData.nameCount == descriptorIndexSet.Count)
-                            break;
-                    }
-                }
-
-                // 공용 탐색 세트 초기화
-                nodeFindDataSet.Reset(1);
-                for (int i = 0; i < descriptorIndexSet.Count; i++)
-                {
-                    EventDataDescriptor descriptor = descriptorIndexSet[i];
-                    if (descriptor.Name.Length <= 1) continue;
-
-                    // 세트에 추가
-                    TreeNodeFindData nodeFindData = new TreeNodeFindData((byte)descriptor.Name[1]);
-                    nodeFindDataSet.Add(nodeFindData);
-                }
-
-                // 하위 트리 생성
-                TreeNode node = new TreeNode(desciptorIndexSet, keyByte, 1, ref nodeFindDataSet);
-                for (int i = 0; i < descriptorArray.Length; i++)
-                {
-                    EventDataDescriptor descriptor = descriptorArray[i];
-                    string name = descriptor.Name;
-                    if (name[0] == keyByte)
-                    {
-                        nodeFindDataSet.AddValue(descriptor);
-                    }
-                }
-
-                for (int i = 0; i < nodeFindDataSet.ByteTypeCount; i++)
-                {
-                    ref TreeNodeFindData nodeFindData = ref nodeFindDataSet[i];
-                    byte keyByte = nodeFindData.keyByte;
-                    int nameCount2 = nodeFindData.nameCount;
-                }
+                branchArray[i] = GetTreeNode(
+                    descriptorArray, 
+                    1, 
+                    keyByte
+                );
             }
-
-            int branchCount;
-            for (int i = 0; i < descriptorArray.Length; i++)
-            {
-                EventDataDescriptor descriptor = descriptorArray[i];
-                string name = descriptor.Name;
-            }
-            this.branchArray = branchArray;
+            return new TreeNode(0, 0, branchArray, null);
         }
 
         /// <summary>
@@ -413,7 +181,7 @@ public class EventDataDescriptorDictionary
         /// <param name="nodeFindDataSet"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        public static TreeNode? GetTreeNode(EventDataDescriptor[] originalDescriptorArray, int keyIndex, byte keyStartByte)
+        public static TreeNode GetTreeNode(EventDataDescriptor[] originalDescriptorArray, int keyIndex, byte keyStartByte)
         {
             ArrayIndexSpan<EventDataDescriptor> descriptorIndexSpan
                 = SplitToArrayIndexSpan(
@@ -432,7 +200,7 @@ public class EventDataDescriptorDictionary
                 if (keyIndex >= descriptor.Name.Length)
                 {
                     // null 반환
-                    return null;
+                    return null;;
                 }
 
                 // 노드 생성 및 반환
@@ -462,6 +230,57 @@ public class EventDataDescriptorDictionary
 
             return new TreeNode(keyStartByte, keyIndex, branchArray, null);
         }
+
+        public static TreeNode GetTreeNode(ArrayIndexSpan<EventDataDescriptor> originalDescriptorIndexSpan, int keyIndex, byte keyStartByte)
+        {
+            ArrayIndexSpan<EventDataDescriptor> descriptorIndexSpan
+                = SplitToArrayIndexSpan(
+                    originalDescriptorIndexSpan, 
+                    stackalloc int[GetKeyByteCount(originalDescriptorIndexSpan, keyIndex, keyStartByte)], 
+                    keyIndex, 
+                    keyStartByte
+                );
+            
+            // 단 한 개만 존재하는 경우
+            if (descriptorIndexSpan.Count == 1)
+            {
+                EventDataDescriptor descriptor = descriptorIndexSpan[0];
+
+                // 이름 길이 초과
+                if (keyIndex >= descriptor.Name.Length)
+                {
+                    // null 반환
+                    return null;;
+                }
+
+                // 노드 생성 및 반환
+                return new TreeNode(descriptor);
+            }
+
+
+            // 노드 탐색 세트 초기화
+            TreeNodeFindData.Set nodeFindDataSet = GetNodeFindDataSet(
+                descriptorIndexSpan, 
+                stackalloc TreeNodeFindData[GetByteTypeCount(descriptorIndexSpan, 0, descriptorIndexSpan.Count)], 
+                keyIndex
+            );
+
+            TreeNode[] branchArray = new TreeNode[nodeFindDataSet.ByteTypeCount];
+            for (int i = 0; i < nodeFindDataSet.ByteTypeCount; i++)
+            {
+                ref TreeNodeFindData nodeFindData = ref nodeFindDataSet[i];
+                byte nodeFindDataKeyByte = nodeFindData.keyByte;
+
+                branchArray[i] = GetTreeNode(
+                    descriptorIndexSpan, 
+                    keyIndex + 1, 
+                    nodeFindDataKeyByte
+                );
+            }
+
+            return new TreeNode(keyStartByte, keyIndex, branchArray, null);
+        }
+
     
         static int GetByteTypeCount(ArrayIndexSpan<EventDataDescriptor> descriptorIndexSpan, int findDataIndex, int maxCount)
         {
