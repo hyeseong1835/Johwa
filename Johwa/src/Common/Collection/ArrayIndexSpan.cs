@@ -1,5 +1,3 @@
-using System.Buffers;
-
 namespace Johwa.Common.Collection;
 
 /// <summary>
@@ -7,18 +5,22 @@ namespace Johwa.Common.Collection;
 /// </summary>
 public ref struct ArrayIndexSpan<T>
 {
-    T[] originalValueArray;
+    public Span<T> originalValueSpan;
     Span<int> indexSpan;
 
     int count;
     public int Count => count;
 
-    public ArrayIndexSpan(T[] originalArray, Span<int> indexSpan)
+    public bool IsReadOnly => false;
+
+    // 생성자
+    public ArrayIndexSpan(Span<T> originalValueSpan, Span<int> indexSpan)
     {
-        this.originalValueArray = originalArray;
+        this.originalValueSpan = originalValueSpan;
         this.indexSpan = indexSpan;
         count = 0;
     }
+
     public T this[int index]
     {
         get => GetValue(index);
@@ -34,13 +36,13 @@ public ref struct ArrayIndexSpan<T>
     {
         int valueIndex = GetIndex(index);
 
-        return originalValueArray[valueIndex];
+        return originalValueSpan[valueIndex];
     }
     public T SetValue(int index, T value)
     {
         int valueIndex = GetIndex(index);
 
-        originalValueArray[valueIndex] = value;
+        originalValueSpan[valueIndex] = value;
         return value;
     }
     public void Add(int valueIndex)
