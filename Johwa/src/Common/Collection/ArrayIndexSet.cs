@@ -20,6 +20,10 @@ public class ArrayIndexSet<T>
         count = 0;
         indexArray = ArrayPool<int>.Shared.Rent(maxCount);
     }
+    public void Reset()
+    {
+        count = 0;
+    }
     public void Reset(int maxCount)
     {
         if (maxCount > indexArray.Length)
