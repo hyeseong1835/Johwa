@@ -6,18 +6,18 @@ namespace Johwa.Common.Collection;
 public ref struct ArrayIndexSpan<T>
 {
     public Span<T> originalValueSpan;
-    Span<int> indexSpan;
+    public Span<int> indexSpan;
 
-    int count;
     public int Count => count;
+    public int count;
 
     public bool IsReadOnly => false;
 
     // 생성자
-    public ArrayIndexSpan(Span<T> originalValueSpan, Span<int> indexSpan)
+    public ArrayIndexSpan(Span<T> originalValueSpan, Span<int> indexBuffer)
     {
         this.originalValueSpan = originalValueSpan;
-        this.indexSpan = indexSpan;
+        this.indexSpan = indexBuffer;
         count = 0;
     }
 
