@@ -5,11 +5,11 @@ using Johwa.Common.Extension.Johwa.Common.Collection;
 
 namespace Johwa.Event.Data;
 
-public class EventDataDescriptorDictionary
+public class EventDataDescriptorTree
 {
     #region Object
 
-    public struct TreeNodeFindData
+    struct TreeNodeFindData
     {
         public ref struct Set
         {
@@ -161,7 +161,7 @@ public class EventDataDescriptorDictionary
         }
     }
     
-    public class TreeNode
+    class TreeNode
     {
         #region Static
 
@@ -259,7 +259,7 @@ public class EventDataDescriptorDictionary
                     );
                 }
 
-                // 가장 이름 인덱스 버퍼 크기를 많이 소모하는 노드는 최대 이름 개수 노드 탐색 세트 재사용
+                // 가장 이름 인덱스 버퍼 크기를 많이 소모하는 노드는 깊이 1 탐색 세트 재사용
                 branchArray[depth1NodeFindDataSet.MaxNameCountDataIndex] = GetTreeNode(
                     descriptorIndexSpan,
                     depth1NodeFindDataSet.MaxNameCountData.keyByte,
@@ -390,7 +390,7 @@ public class EventDataDescriptorDictionary
                     }
                 }
                 
-                // 가장 이름 인덱스 버퍼 크기를 많이 소모하는 노드는 최대 이름 개수 노드 탐색 세트 재사용
+                // 가장 이름 인덱스 버퍼 크기를 많이 소모하는 노드는 원본 노드 탐색 세트 재사용
                 branchArray[nodeFindDataSet.MaxNameCountDataIndex] = GetTreeNode(
                     descriptorIndexSpan, 
                     nodeFindDataSet.MaxNameCountData.keyByte,
@@ -460,19 +460,6 @@ public class EventDataDescriptorDictionary
             }
             throw new Exception("설명자를 찾을 수 없습니다.");
         }
-        static int GetMaxByteTypeCount(TreeNodeFindData.Set depth1FindDataSet, ArrayIndexSpan<EventDataDescriptor> originalDescriptorIndexSpan, int nameIndex)
-        {
-            int maxByteTypeCount = 0;
-            for (int i = 0; i < depth1FindDataSet.ByteTypeCount; i++)
-            {
-                ref TreeNodeFindData nodeFindData = ref depth1FindDataSet[i];
-                byte keyByte = nodeFindData.keyByte;
-
-                int byteTypeCount = GetKeyByteCount(originalDescriptorIndexSpan, nameIndex, keyByte);
-                maxByteTypeCount = Math.Max(maxByteTypeCount, byteTypeCount);
-            }
-            return maxByteTypeCount;
-        }
 
         static int GetByteTypeCount(ArrayIndexSpan<EventDataDescriptor> descriptorIndexSpan, int findNameIndex, int maxCount)
         {
@@ -502,43 +489,6 @@ public class EventDataDescriptorDictionary
             return result;
         }
 
-        
-        static int GetMaxNameCount(TreeNodeFindData.Set nodeFindData)
-        {
-            int maxKeyByteNameCount = 0;
-
-            for (int i = 0; i < nodeFindData.ByteTypeCount; i++)
-            {
-                ref TreeNodeFindData nodeFindDataItem = ref nodeFindData[i];
-                maxKeyByteNameCount = Math.Max(maxKeyByteNameCount, nodeFindDataItem.nameCount);
-            }
-
-            return maxKeyByteNameCount;
-        }
-       
-        static int GetKeyByteCount(ArrayIndexSpan<EventDataDescriptor> descriptorIndexSpan, int keyIndex, byte targetByte)
-        {
-            int result = 0;
-            for (int i = 0; i < descriptorIndexSpan.Count; i++)
-            {
-                EventDataDescriptor descriptor = descriptorIndexSpan[i];
-                string descriptorName = descriptor.Name;
-
-                // 이름 길이 초과
-                if (keyIndex >= descriptorName.Length) continue;
-
-                byte keyByte = (byte)descriptorName[keyIndex];
-                
-                // 바이트가 같으면
-                if (keyByte == targetByte) 
-                {
-                    result++;
-                    continue;
-                }
-            }
-            return result;
-        }
-    
         #endregion
 
 
@@ -612,17 +562,14 @@ public class EventDataDescriptorDictionary
 
     // 필드
 
-    public EventDataDescriptor[] descriptorArray;
-    public TreeNode? treeRoot;
+    EventDataDescriptor[] descriptorArray;
+    TreeNode? treeRoot;
     
 
     // 생성자
-    public EventDataDescriptorDictionary(EventDataContainerMetadata containerMetadata)
+    public EventDataDescriptorTree(EventDataDescriptor[] descriptorArray)
     {
-        // 이름 배열 로드
-        IEnumerable<EventDataDescriptor> descriptorEnumerable = containerMetadata.GetEventDataDescriptorEnumerable();
-
-        this.descriptorArray = descriptorEnumerable.ToArray();
+        this.descriptorArray = descriptorArray;
         this.treeRoot = TreeNode.CreateTree(descriptorArray);
     }
 

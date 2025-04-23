@@ -6,11 +6,16 @@ public interface IEventDataGroup
 {
     #region Static
 
-    public static void CreateDescriptors(Type groupType, out EventFieldDescriptor[] fieldDescriptors, out EventPropertyDescriptor[] propertyDescriptors, out EventDataGroupDescriptor[] dataGroupDescriptors)
+    public static void CreateDescriptors(Type groupType, 
+        out EventFieldDescriptor[] fieldDescriptorArray, 
+        out EventPropertyDescriptor[] propertyDescriptorArray, 
+        out EventDataGroupDescriptor[] dataGroupDescriptorArray,
+        out int dataCount)
     {
         List<EventFieldDescriptor> fieldDescriptorList = new();
         List<EventPropertyDescriptor> propertyDescriptorList = new();
         List<EventDataGroupDescriptor> dataGroupDescriptorList = new();
+        dataCount = 0;
         
         // 필드 정보
         FieldInfo[] fieldInfoArray = groupType.GetFields(BindingFlags.Public | BindingFlags.Instance);
@@ -23,13 +28,14 @@ public interface IEventDataGroup
             if (propertyAttribute != null) {
                 EventFieldDescriptor descriptor = propertyAttribute.CreateDescriptor(fieldInfo, fieldInfo.FieldType.IsSubclassOf(typeof(EventField)));
                 fieldDescriptorList.Add(descriptor);
+                dataCount++;
                 continue;
             }
 
             // DataGroup
             EventDataGroupAttribute? propertyGroupAttribute = fieldInfo.GetCustomAttribute<EventDataGroupAttribute>();
             if (propertyGroupAttribute != null) {
-                EventDataGroupDescriptor descriptor = propertyGroupAttribute.CreateDescriptor(fieldInfo);
+                EventDataGroupDescriptor descriptor = propertyGroupAttribute.GetDescriptor(fieldInfo);
                 dataGroupDescriptorList.Add(descriptor);
                 continue;
             }
@@ -51,9 +57,9 @@ public interface IEventDataGroup
         }
 
         // 정리
-        fieldDescriptors = fieldDescriptorList.ToArray();
-        dataGroupDescriptors = dataGroupDescriptorList.ToArray();
-        propertyDescriptors = propertyDescriptorList.ToArray();
+        fieldDescriptorArray = fieldDescriptorList.ToArray();
+        dataGroupDescriptorArray = dataGroupDescriptorList.ToArray();
+        propertyDescriptorArray = propertyDescriptorList.ToArray();
     }
 
     

@@ -29,14 +29,20 @@ public class EventDataContainerMetadata
 
     #region Instance
 
-    public EventDataDescriptorDictionary dataDescriptorDictionary = new();
+    public EventDataDescriptorTree dataDescriptorTree = new EventDataDescriptorTree(this);
     public EventFieldDescriptor[] fieldDescriptorArray;
     public EventPropertyDescriptor[] propertyDescriptorArray;
     public EventDataGroupDescriptor[] dataGroupDescriptorArray;
 
     public EventDataContainerMetadata(Type dataType)
     {
-        this.propertyDescriptorArray = IEventDataGroupMetadata.LoadPropertyDescriptors(dataType);
+        IEventDataGroup.CreateDescriptors(dataType, 
+            out fieldDescriptorArray, out propertyDescriptorArray, out dataGroupDescriptorArray);
+
+        IEnumerable<EventDataDescriptor> dataDescriptorEnumerable = GetEventDataDescriptorEnumerable();
+        EventDataDescriptor[] dataDescriptorArray = dataDescriptorEnumerable.ToArray();
+        
+        dataDescriptorTree = new EventDataDescriptorTree(dataDescriptorArray);
     }
 
     public IEnumerable<EventDataDescriptor> GetEventDataDescriptorEnumerable()

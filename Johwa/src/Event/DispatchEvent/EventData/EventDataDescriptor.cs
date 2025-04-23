@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Johwa.Event.Data;
 
 public abstract class EventDataDescriptor
@@ -36,7 +38,23 @@ public abstract class EventDataDescriptor
 
     #endregion
 
+
+    #region Static
+
+    static Dictionary<Type, EventDataDescriptor> instanceDictionary = new ();
+
+    public static EventDataDescriptor GetInstance(FieldInfo fieldInfo)
+    {
+        if (instanceDictionary.TryGetValue(groupType, out EventDataDescriptor? descriptor) == false)
+        {
+            descriptor = (EventDataDescriptor)Activator.CreateInstance(groupType)!;
+            instanceDictionary.Add(groupType, descriptor);
+        }
+    }
+
+    #endregion
     
+
     #region Instance
 
     public abstract string Name { get; }

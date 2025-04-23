@@ -4,7 +4,7 @@ namespace Johwa.Event.Data;
 
 public class EventDataGroupAttribute : Attribute
 {
-    public EventDataGroupDescriptor CreateDescriptor(FieldInfo fieldInfo)
+    public EventDataGroupDescriptor GetDescriptor(FieldInfo fieldInfo)
     {
         EventDataGroupMetadata metadata = EventDataGroupMetadata.GetInstance(fieldInfo.FieldType);
         
