@@ -25,6 +25,8 @@ public class EventDataGroupMetadata
     public readonly EventFieldDescriptor[] subFieldDescriptorArray;
     public readonly EventPropertyDescriptor[] subPropertyDescriptorArray;
     public readonly EventDataGroupDescriptor[] subDataGroupDescriptorArray;
+    public readonly int minDataCount;
+    public readonly int dataDescriptorCount;
 
     // 생성자
     public EventDataGroupMetadata(Type dataType)

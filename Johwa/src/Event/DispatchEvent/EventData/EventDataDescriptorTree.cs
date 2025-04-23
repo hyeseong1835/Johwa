@@ -1,4 +1,3 @@
-using System.Buffers;
 using Johwa.Common.Collection;
 using Johwa.Common.Debug;
 using Johwa.Common.Extension.Johwa.Common.Collection;
@@ -55,16 +54,16 @@ public class EventDataDescriptorTree
                 if (byteTypeCount >= branchFindDataSpan.Length)
                     throw new ArgumentOutOfRangeException("브랜치 데이터가 너무 많습니다.");
 
-                if (descriptor.Name.Length == 0) 
+                if (descriptor.name.Length == 0) 
                     throw new ArgumentException("이름 길이가 0입니다.");
 
-                if (findNameIndex >= descriptor.Name.Length) 
+                if (findNameIndex >= descriptor.name.Length) 
                     throw new ArgumentOutOfRangeException("이름 길이를 초과했습니다.");
 
                 if (byteTypeCount == 0)
                 {
                     AddData(new TreeNodeFindData(
-                        (byte)descriptor.Name[findNameIndex], 
+                        (byte)descriptor.name[findNameIndex], 
                         1
                     ));
                     return;
@@ -74,7 +73,7 @@ public class EventDataDescriptorTree
                 int foundedIndex;
 
                 ref TreeNodeFindData branchFindData = ref FindData(
-                    (byte)descriptor.Name[findNameIndex], 
+                    (byte)descriptor.name[findNameIndex], 
                     out isFound,
                     out foundedIndex
                 );
@@ -86,7 +85,7 @@ public class EventDataDescriptorTree
                 else
                 {
                     branchFindData = AddData(new TreeNodeFindData(
-                        (byte)descriptor.Name[0], 
+                        (byte)descriptor.name[0], 
                         1
                     ));
                     foundedIndex = byteTypeCount - 1;
@@ -177,7 +176,7 @@ public class EventDataDescriptorTree
             if (descriptorArray.Length == 1)
             {
                 EventDataDescriptor descriptor = descriptorArray[0];
-                string name = descriptor.Name;
+                string name = descriptor.name;
 
                 // 이름 길이 0
                 if (name.Length == 0)
@@ -359,7 +358,7 @@ public class EventDataDescriptorTree
                             int descriptorIndex = descriptorIndexSpan.GetIndex(i);
                             
                             EventDataDescriptor descriptor = descriptorIndexSpan.GetValue(descriptorIndex);
-                            string descriptorName = descriptor.Name;
+                            string descriptorName = descriptor.name;
 
                             // 이름 길이 초과
                             if (findNameIndex + 1 >= descriptorName.Length) continue;
@@ -418,7 +417,7 @@ public class EventDataDescriptorTree
                 int descriptorIndex = descriptorIndexSpan.GetIndex(descriptorIndexIndex);
                 
                 EventDataDescriptor descriptor = descriptorIndexSpan.GetValue(descriptorIndex);
-                string descriptorName = descriptor.Name;
+                string descriptorName = descriptor.name;
 
                 // 이름 길이 초과
                 if (1 >= descriptorName.Length) continue;
@@ -453,7 +452,7 @@ public class EventDataDescriptorTree
             {
                 EventDataDescriptor descriptor = descriptorIndexSpan[descriptorIndex];
 
-                if (descriptor.Name[nameIndex] == keyByte)
+                if (descriptor.name[nameIndex] == keyByte)
                 {
                     return descriptor;
                 }
@@ -518,12 +517,12 @@ public class EventDataDescriptorTree
             value = descriptor;
         }
 
-        public EventDataDescriptor? GetDescriptor(string name)
+        public EventDataDescriptor? GetDescriptor(ReadOnlySpan<byte> nameSpan)
         {
             // [ 반환 ] 값이 존재하는 노드
             if (value != null)
             {
-                if (value.Name.Length == name.Length)
+                if (value.name.Length == nameSpan.Length)
                 {
                     return value;
                 }
@@ -536,9 +535,9 @@ public class EventDataDescriptorTree
             for (int i = 0; i < branchArray.Length; i++)
             {
                 TreeNode branchNode = branchArray[i];
-                if (branchNode.keyStartByte == name[branchKeyStartIndex])
+                if (branchNode.keyStartByte == nameSpan[branchKeyStartIndex])
                 {
-                    return branchNode.GetDescriptor(name);
+                    return branchNode.GetDescriptor(nameSpan);
                 }
             }
 
@@ -573,14 +572,14 @@ public class EventDataDescriptorTree
         this.treeRoot = TreeNode.CreateTree(descriptorArray);
     }
 
-    public EventDataDescriptor? GetDescriptor(string name)
+    public EventDataDescriptor? GetDescriptor(ReadOnlySpan<byte> nameSpan)
     {
         if (treeRoot == null) {
             JohwaLogger.Log("트리가 비었습니다.");
             return null;
         }
 
-        return treeRoot.GetDescriptor(name);
+        return treeRoot.GetDescriptor(nameSpan);
     }
     
     #endregion

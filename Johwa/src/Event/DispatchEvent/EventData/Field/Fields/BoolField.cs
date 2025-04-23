@@ -6,7 +6,7 @@ namespace Johwa.Event.Data;
 [EventFieldReader(typeof(bool))]
 public class BoolField : EventField
 {
-    public BoolField(CreateData createData)
+    public BoolField(EventFieldCreateData createData)
     {
         switch (createData.tokenType)
         {

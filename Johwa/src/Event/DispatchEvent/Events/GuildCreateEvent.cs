@@ -72,7 +72,8 @@ public abstract class GuildCreateEventData : EventDataDocument
     [EventField("unavailable")]
     public bool isUnavailable;
 
-    public Snowflake GuildId
+    [EventProperty("id")]
+    public EventProperty<Snowflake> GuildId
         => data.GetProperty("id").GetSnowflake();
 
     #nullable enable
@@ -81,21 +82,10 @@ public abstract class GuildCreateEventData : EventDataDocument
 
 public class AvailableGuildCreateEventData : EventDataDocument
 {
-    // Static
-    public static EventDataDocumentMetadata? metadataStatic;
+    new public static EventDataDocumentMetadata metadata = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
 
 
     #region Instance
-
-    // 재정의
-    protected override EventDataDocumentMetadata GetMetadata()
-    {
-        if (metadataStatic == null)
-            metadataStatic = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
-
-        return metadataStatic;
-    }
-    
 
     #region 필드
     #nullable disable
@@ -194,7 +184,7 @@ public class AvailableGuildCreateEventData : EventDataDocument
 
     // 생성자
     public AvailableGuildCreateEventData(
-        ReadOnlyMemory<byte> data) : base(data) { }
+        ReadOnlyMemory<byte> data) : base(metadata, data) { }
 
     #endregion
 }
@@ -202,23 +192,14 @@ public class AvailableGuildCreateEventData : EventDataDocument
 public class UnavailableGuildCreateEventData : EventDataDocument
 {
     // Static
-    public static EventDataDocumentMetadata metadataStatic = new(typeof(UnavailableGuildCreateEventData));
+    new public static EventDataDocumentMetadata metadata = new(typeof(UnavailableGuildCreateEventData));
 
 
     #region Instance
     
-    // 재정의
-    protected override EventDataDocumentMetadata GetMetadata()
-    {
-        if (metadataStatic == null)
-            metadataStatic = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
-
-        return metadataStatic;
-    }
-    
     // 생성자
     public UnavailableGuildCreateEventData(
-        ReadOnlyMemory<byte> data) : base(data) { }
+        ReadOnlyMemory<byte> data) : base(metadata, data) { }
         
     #endregion
 }

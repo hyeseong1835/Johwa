@@ -6,7 +6,7 @@ namespace Johwa.Event.Data;
 [EventFieldReader(typeof(string))]
 public class StringField : EventField
 {
-    public StringField(CreateData createData)
+    public StringField(EventFieldCreateData createData)
     {
         switch (createData.tokenType)
         {

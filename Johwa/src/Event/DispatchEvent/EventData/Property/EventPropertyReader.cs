@@ -16,10 +16,10 @@ public abstract class EventPropertyReader
     #region Object
 
     [AttributeUsage(AttributeTargets.Class)]
-    protected class EventPropertyReaderAttribute : Attribute
+    protected class EventValuePropertyReaderAttribute : Attribute
     {
         public Type fieldType;
-        public EventPropertyReaderAttribute(Type fieldType)
+        public EventValuePropertyReaderAttribute(Type fieldType)
         {
             this.fieldType = fieldType;
         }
@@ -55,7 +55,7 @@ public abstract class EventPropertyReader
                     continue;
 
                 // Attribute 로드
-                EventPropertyReaderAttribute? attribute = readerType.GetCustomAttribute<EventPropertyReaderAttribute>();
+                EventValuePropertyReaderAttribute? attribute = readerType.GetCustomAttribute<EventValuePropertyReaderAttribute>();
                 if (attribute == null) {
                     JohwaLogger.Log($"프로퍼티 리더({readerType})에 EventPropertyReaderAttribute가 없습니다.",
                         severity: LogSeverity.Warning, stackTrace: true);

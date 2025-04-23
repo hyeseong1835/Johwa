@@ -17,6 +17,6 @@ public class EventFieldAttribute : Attribute
         this.isOptional = isOptional;
         this.isNullable = isNullable;
     }
-    public EventFieldDescriptor CreateDescriptor(FieldInfo fieldInfo, bool isFieldTypeEventProperty)
-        => new EventFieldDescriptor(fieldInfo, isFieldTypeEventProperty, name, isOptional, isNullable);
+    public EventFieldDescriptor CreateDescriptor(FieldInfo fieldInfo)
+        => new EventFieldDescriptor(fieldInfo, name, isOptional, isNullable);
 }

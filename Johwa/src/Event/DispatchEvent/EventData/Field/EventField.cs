@@ -1,8 +1,8 @@
 using Johwa.Common.Debug;
 using System.Linq.Expressions;
-using System.Text.Json;
 using System.Reflection;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
@@ -20,21 +20,25 @@ public abstract class EventField : EventData
         }
     }
 
-    public struct CreateData
+    public struct EventFieldCreateData
     {
-        public IEventDataGroup declaringGroup;
         public EventFieldDescriptor descriptor;
+        public IEventDataGroup declaringGroup;
         public ReadOnlyMemory<byte> data;
         public JsonTokenType tokenType;
-        
-        public CreateData(IEventDataGroup declaringGroup,
-            EventFieldDescriptor descriptor, 
+
+        public EventFieldCreateData(EventFieldDescriptor descriptor, IEventDataGroup declaringGroup,
             ReadOnlyMemory<byte> data, JsonTokenType tokenType)
         {
-            this.declaringGroup = declaringGroup;
             this.descriptor = descriptor;
+            this.declaringGroup = declaringGroup;
             this.data = data;
             this.tokenType = tokenType;
+        }
+        public EventFieldCreateData(EventFieldDescriptor descriptor, IEventDataGroup declaringGroup,
+            ReadOnlyMemory<byte> data, JsonTokenType tokenType, Type dataType) : this(descriptor, declaringGroup, data, tokenType)
+        {
+            this.dataType = dataType;
         }
     }
     
@@ -44,7 +48,7 @@ public abstract class EventField : EventData
     #region Static
 
     // 필드
-    static Dictionary<Type, Func<CreateData, EventField>> constructorDictionary = CreateConstructorDictionary();
+    static Dictionary<Type, Func<EventFieldCreateData, EventField>> constructorDictionary = CreateConstructorDictionary();
 
     #region 메서드
 
@@ -56,13 +60,11 @@ public abstract class EventField : EventData
     /// </summary>
     /// <param name="createData"></param>
     /// <returns></returns>
-    public static EventField? CreateInstance(CreateData createData)
+    public static EventField? CreateInstance(EventFieldCreateData createData)
     {
-        Type fieldType = createData.descriptor.fieldInfo.FieldType;
-
-        Func<CreateData, EventField>? constructor = GetConstructor(fieldType);
+        Func<EventFieldCreateData, EventField>? constructor = GetConstructor(createData.dataType);
         if (constructor == null) {
-            JohwaLogger.Log($"EventField의 생성자를 찾을 수 없습니다. : {fieldType}",
+            JohwaLogger.Log($"EventField의 생성자를 찾을 수 없습니다. : {createData.dataType}",
                 severity: LogSeverity.Warning, stackTrace: true);
             return null;
         }
@@ -71,9 +73,9 @@ public abstract class EventField : EventData
     }
 
 
-    static Dictionary<Type, Func<CreateData, EventField>> CreateConstructorDictionary()
+    static Dictionary<Type, Func<EventFieldCreateData, EventField>> CreateConstructorDictionary()
     {
-        Dictionary<Type, Func<CreateData, EventField>> dictionary = new();
+        Dictionary<Type, Func<EventFieldCreateData, EventField>> dictionary = new();
         
         Assembly currentAssembly = Assembly.GetExecutingAssembly();
         Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
@@ -104,7 +106,7 @@ public abstract class EventField : EventData
                 Type fieldType = attribute.fieldType;
                 
                 // 대상 타입을 정의하는 리더가 이미 존재하면
-                if (dictionary.TryGetValue(fieldType, out Func<CreateData, EventField>? originalConstructor)) 
+                if (dictionary.TryGetValue(fieldType, out Func<EventFieldCreateData, EventField>? originalConstructor)) 
                 {
                     Type originalConstructorType = originalConstructor.GetType();
 
@@ -112,7 +114,7 @@ public abstract class EventField : EventData
                     if (originalConstructorType.Assembly == currentAssembly)
                     {
                         // 리더 생성 시도
-                        Func<CreateData, EventField>? constructor;
+                        Func<EventFieldCreateData, EventField>? constructor;
                         if (TryCreateConstructor(type, out constructor) == false) 
                             continue; // 실패 시 종료
 
@@ -132,7 +134,7 @@ public abstract class EventField : EventData
                 else
                 {
                     // 리더 생성 시도
-                    Func<CreateData, EventField>? constructor;
+                    Func<EventFieldCreateData, EventField>? constructor;
                     if (TryCreateConstructor(type, out constructor) == false) 
                         continue; // 실패 시 종료
 
@@ -152,7 +154,7 @@ public abstract class EventField : EventData
         /// <param name="readerType"></param>
         /// <param name="reader"></param>
         /// <returns>성공 여부</returns>
-        static bool TryCreateConstructor(Type fieldType, [NotNullWhen(true)] out Func<CreateData, EventField>? reader)
+        static bool TryCreateConstructor(Type fieldType, [NotNullWhen(true)] out Func<EventFieldCreateData, EventField>? reader)
         {
             // 제네릭 클래스임 
             if (fieldType.IsGenericType) {
@@ -172,25 +174,25 @@ public abstract class EventField : EventData
             return true;
         }
     }
-    static Func<CreateData, EventField>? GetConstructor(Type fieldType)
+    static Func<EventFieldCreateData, EventField>? GetConstructor(Type fieldType)
     {
         // 캐시된 생성자 정보 로드
-        if (constructorDictionary.TryGetValue(fieldType, out Func<CreateData, EventField>? constructor)) {
+        if (constructorDictionary.TryGetValue(fieldType, out Func<EventFieldCreateData, EventField>? constructor)) {
             return constructor;
         }
 
         // 생성자 정보 생성
-        ConstructorInfo? constructorInfo = fieldType.GetConstructor([ typeof(CreateData) ]);
+        ConstructorInfo? constructorInfo = fieldType.GetConstructor([ typeof(EventFieldCreateData) ]);
         if (constructorInfo == null) {
             return null;
         }
 
         // 파라미터
-        ParameterExpression parameter = Expression.Parameter(typeof(CreateData), "createData");
+        ParameterExpression parameter = Expression.Parameter(typeof(EventFieldCreateData), "createData");
 
         // Expression
         NewExpression expression = Expression.New(constructorInfo, parameter);
-        Expression<Func<CreateData, EventField>> lambda = Expression.Lambda<Func<CreateData, EventField>>(expression, parameter);
+        Expression<Func<EventFieldCreateData, EventField>> lambda = Expression.Lambda<Func<EventFieldCreateData, EventField>>(expression, parameter);
         
         // 생성자 컴파일
         constructor = lambda.Compile();
@@ -209,19 +211,6 @@ public abstract class EventField : EventData
 
     #region Instance
 
-    // 생성자
-    /// <summary>
-    /// 직접 사용하지 말 것
-    /// </summary>
-    /// <param name="createData"></param>
-    /// <exception cref="InvalidOperationException"></exception>
-    public EventField(CreateData createData)
-    {
-        // 필드 타입이 아니면 예외
-        if (createData.descriptor.isFieldTypeEventProperty == false) {
-            throw new InvalidOperationException($"EventField는 필드 타입이 아닙니다. : {createData.descriptor.name}");
-        }
-    }
 
     #endregion
 }
