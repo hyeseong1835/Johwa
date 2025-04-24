@@ -9,7 +9,6 @@ public abstract class EventDataContainerMetadata
     public readonly Type containerType;
     public readonly EventDataDescriptorTree dataDescriptorTree;
     public readonly EventFieldDescriptor[] fieldDescriptorArray;
-    public readonly EventPropertyDescriptor[] propertyDescriptorArray;
     public readonly EventDataGroupDescriptor[] dataGroupDescriptorArray;
     public readonly int minDataCount;
 
@@ -20,7 +19,7 @@ public abstract class EventDataContainerMetadata
         EventDataDescriptor[] dataDescriptorArray;
 
         IEventDataGroup.CreateDescriptors(containerType, 
-            out fieldDescriptorArray, out propertyDescriptorArray, out dataGroupDescriptorArray,
+            out fieldDescriptorArray, out dataGroupDescriptorArray,
             out dataDescriptorArray, out minDataCount);
         
         dataDescriptorTree = new EventDataDescriptorTree(dataDescriptorArray);

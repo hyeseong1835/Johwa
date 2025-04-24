@@ -8,13 +8,11 @@ public interface IEventDataGroup
 
     public static void CreateDescriptors(Type groupType, 
         out EventFieldDescriptor[] fieldDescriptorArray, 
-        out EventPropertyDescriptor[] propertyDescriptorArray, 
         out EventDataGroupDescriptor[] dataGroupDescriptorArray,
         out EventDataDescriptor[] dataDescriptorArray,
         out int minDataCount)
     {
         List<EventFieldDescriptor> fieldDescriptorList = new();
-        List<EventPropertyDescriptor> propertyDescriptorList = new();
         List<EventDataGroupDescriptor> dataGroupDescriptorList = new();
         int dataCount = 0;
         minDataCount = 0;
@@ -50,30 +48,9 @@ public interface IEventDataGroup
             }
         }
 
-        // 프로퍼티 정보
-        PropertyInfo[] propertyInfoArray = groupType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        for (int i = 0; i < propertyInfoArray.Length; i++)
-        {
-            PropertyInfo propertyInfo = propertyInfoArray[i];
-
-            // Property
-            EventPropertyAttribute? propertyAttribute = propertyInfo.GetCustomAttribute<EventPropertyAttribute>();
-            if (propertyAttribute != null) {
-                EventPropertyDescriptor descriptor = propertyAttribute.CreateDescriptor(propertyInfo);
-                propertyDescriptorList.Add(descriptor);
-                dataCount++;
-
-                if (descriptor.isOptional == false) {
-                    minDataCount++;
-                }
-                continue;
-            }
-        }
-
         // 정리
         fieldDescriptorArray = fieldDescriptorList.ToArray();
         dataGroupDescriptorArray = dataGroupDescriptorList.ToArray();
-        propertyDescriptorArray = propertyDescriptorList.ToArray();
 
         // 데이터 설명자 배열
         dataDescriptorArray = new EventDataDescriptor[dataCount];
@@ -81,10 +58,6 @@ public interface IEventDataGroup
         for (int i = 0; i < fieldDescriptorArray.Length; i++)
         {
             dataDescriptorArray[dataDescriptorIndex++] = fieldDescriptorArray[i];
-        }
-        for (int i = 0; i < propertyDescriptorArray.Length; i++)
-        {
-            dataDescriptorArray[dataDescriptorIndex++] = propertyDescriptorArray[i];
         }
         for (int i = 0; i < dataGroupDescriptorArray.Length; i++)
         {
