@@ -2,6 +2,7 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Johwa.Common.Collection;
 
@@ -570,6 +571,44 @@ public class ReadOnlyByteSpanTree<TValue>
             this.childNodeArray = childNodeArray;
             this.findByteIndex = findByteIndex;
         }
+
+        /// <summary>
+        /// 이진 탐색으로 자식 노드를 찾음
+        /// </summary>
+        /// <param name="keyByte">찾을 keyByte</param>
+        /// <param name="childNode">찾은 노드</param>
+        /// <returns>지정한 keyByte를 가진 노드의 존재 여부</returns>
+        public bool TryFindChildNode(byte keyByte, [NotNullWhen(true)] out Node? childNode)
+        {
+            int minIndex = 0;
+            int maxIndex = childNodeArray.Length - 1;
+            
+            while (minIndex <= maxIndex)
+            {
+                int midIndex = (minIndex + maxIndex) / 2;
+                Node midNode = childNodeArray[midIndex];
+
+                // 가운데 노드 == 찾을 노드
+                if (midNode.keyByte == keyByte)
+                {
+                    childNode = midNode;
+                    return true;
+                }
+                // 가운데 노드 < 찾을 노드
+                else if (midNode.keyByte < keyByte)
+                {
+                    minIndex = midIndex + 1;
+                }
+                // 찾을 노드 < 가운데 노드
+                else
+                {
+                    maxIndex = midIndex - 1;
+                }
+            }
+
+            childNode = null;
+            return false;
+        }
     }
 
     #endregion
@@ -581,6 +620,70 @@ public class ReadOnlyByteSpanTree<TValue>
     ReadOnlyByteSpanTree(ChildNodeInfo rootChildNodeInfo)
     {
         this.rootChildNodeInfo = rootChildNodeInfo;
+    }
+
+    public TValue GetValue(ReadOnlySpan<byte> key)
+    {
+        if (TryGetValue(key, out TValue? value))
+        {
+            return value;
+        }
+        else
+        {
+            // 값을 찾을 수 없음 -> 예외 발생
+            throw new KeyNotFoundException($"'{Encoding.ASCII.GetString(key)}' 키를 찾을 수 없습니다.");
+        }
+    }
+    public bool TryGetValue(ReadOnlySpan<byte> key, [NotNullWhen(true)] out TValue? value)
+    {
+        Node? findNode;
+        if (rootChildNodeInfo.TryFindChildNode(key[0], out findNode) == false)
+        {
+            // 자식 노드를 찾을 수 없음
+            value = default;
+            return false;
+        }
+
+        for (int i = 1; i < key.Length; i++)
+        {
+            if (findNode.childNodeInfo == null)
+            {
+                // 자식 노드가 없음
+                value = default;
+                return false;
+            }
+
+            byte keyByte = key[i];
+            
+            if (findNode.childNodeInfo.TryFindChildNode(keyByte, out findNode))
+            {
+                // 자식 노드를 찾음 -> 다음 노드로 이동
+                continue;
+            }
+            else
+            {
+                // 자식 노드를 찾을 수 없음
+                value = default;
+                return false;
+            }
+        }
+        if (findNode.hasValue)
+        {
+            if (findNode.value == null)
+            {
+                // 값이 없음
+                value = default;
+                return false;
+            }
+
+            value = findNode.value;
+            return true;
+        }
+        else
+        {
+            value = default;
+            return false;
+        }
     }
 
     #endregion
