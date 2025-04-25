@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Johwa.Common.Extension.System;
 using Johwa.Common.Collection;
+using Johwa.Common.Debug;
+using System.Text;
 
 namespace Johwa.Event.Data;
 
@@ -91,6 +93,7 @@ public abstract class EventDataContainer : IEventDataGroup, IDisposable
             if (metadata.dataDescriptorTree.TryGetValue(jsonDataNameSpan, out dataDescriptor) == false)
             {
                 // 데이터 설명자를 찾지 못함
+                JohwaLogger.Log($"'{Encoding.ASCII.GetString(jsonDataNameSpan)}' 키를 찾을 수 없습니다.");
                 continue;
             }
 
