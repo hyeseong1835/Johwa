@@ -54,7 +54,7 @@ unsafe public struct UnmanagedStack<T> : IDisposable
         return ref stack[topIndex];
     }
 
-    public bool TryPop([NotNullWhen(true)] out T? value)
+    public bool TryPop([NotNullWhen(true)] out T value)
     {
         if (topIndex < 0)
         {

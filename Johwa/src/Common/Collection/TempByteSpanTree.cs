@@ -1,137 +1,45 @@
+#pragma warning disable CS8500 // 주소를 가져오거나, 크기를 가져오거나, 관리되는 형식에 대한 포인터를 선언합니다.
+
+using System.Runtime.InteropServices;
+
 namespace Johwa.Common.Collection;
 
-public ref struct TempByteSpanTree<TValue>
+unsafe public struct TempByteSpanTree<TValue, TOriginalValue> : IDisposable
 {
-    public class Node
+    ReadOnlyByteSpanTree<TOriginalValue> originalTree;
+    GCHandle originalTreeGCHandle;
+
+    TValue* valueArray;
+    Func<TOriginalValue, TValue> valueCreator;
+
+    public TempByteSpanTree(ReadOnlyByteSpanTree<TOriginalValue> originalTree, Func<TOriginalValue, TValue> valueCreator)
     {
-        public readonly byte keyByte;
+        this.originalTree = originalTree;
+        originalTreeGCHandle = GCHandle.Alloc(originalTree, GCHandleType.Pinned);
 
-        public readonly TValue? value;
-        public readonly bool hasValue;
+        this.valueCreator = valueCreator;
 
-        public readonly ChildNodeInfo? childNodeInfo;
-
-
-        #region Constructor
-
-        /// <summary>
-        /// 값 노드 생성
-        /// </summary>
-        /// <param name="value"></param>
-        public Node(byte keyByte, TValue value)
+        valueArray = (TValue*)Marshal.AllocHGlobal(sizeof(TValue) * originalTree.valueCount);
+        ReadOnlyByteSpanTree<TOriginalValue>.ValueIterator valueIterator = originalTree.GetValueIterator();
+        for (int i = 0; i < originalTree.valueCount; i++)
         {
-            this.keyByte = keyByte;
-
-            this.value = value;
-            this.hasValue = true;
-            
-            this.childNodeInfo = null;
-        }
-
-        /// <summary>
-        /// 브랜치 노드 생성
-        /// </summary>
-        /// <param name="keyByte"></param>
-        /// <param name="childNodeInfo"></param>
-        public Node(byte keyByte, ChildNodeInfo childNodeInfo)
-        {
-            this.keyByte = keyByte;
-
-            this.value = default;
-            this.hasValue = false;
-
-            this.childNodeInfo = childNodeInfo;
-        }
-
-        /// <summary>
-        /// 값 브랜치 노드 생성
-        /// </summary>
-        /// <param name="keyByte"></param>
-        /// <param name="childNodeInfo"></param>
-        /// <param name="value"></param>
-        public Node(byte keyByte,  TValue value, ChildNodeInfo childNodeInfo)
-        {
-            this.keyByte = keyByte;
-
-            this.value = value;
-            this.hasValue = true;
-
-            this.childNodeInfo = childNodeInfo;
-        }
-
-        #endregion
-
-        public bool TryGetValue([NotNullWhen(true)] out TValue? value)
-        {
-            if (hasValue)
+            TOriginalValue? originalValue;
+            if (valueIterator.MoveNext(out originalValue))
             {
-                value = this.value!;
-                return true;
+                valueArray[i] = valueCreator.Invoke(originalValue);
             }
             else
             {
-                value = default;
-                return false;
+                throw new InvalidOperationException("원본 트리의 값 수가 일치하지 않습니다.");
             }
         }
     }
-    
-    public class ChildNodeInfo
+
+    public void Dispose()
     {
-        public readonly Node[] childNodeArray;
-        public readonly int findByteIndex;
+        originalTreeGCHandle.Free();
 
-        public ChildNodeInfo(Node[] childNodeArray, int findByteIndex)
-        {
-            this.childNodeArray = childNodeArray;
-            this.findByteIndex = findByteIndex;
-        }
-
-        /// <summary>
-        /// 이진 탐색으로 자식 노드를 찾음
-        /// </summary>
-        /// <param name="keyByte">찾을 keyByte</param>
-        /// <param name="childNode">찾은 노드</param>
-        /// <returns>지정한 keyByte를 가진 노드의 존재 여부</returns>
-        public bool TryFindChildNode(byte keyByte, [NotNullWhen(true)] out Node? childNode)
-        {
-            int minIndex = 0;
-            int maxIndex = childNodeArray.Length - 1;
-            
-            while (minIndex <= maxIndex)
-            {
-                int midIndex = (minIndex + maxIndex) / 2;
-                Node midNode = childNodeArray[midIndex];
-
-                // 가운데 노드 == 찾을 노드
-                if (midNode.keyByte == keyByte)
-                {
-                    childNode = midNode;
-                    return true;
-                }
-                // 가운데 노드 < 찾을 노드
-                else if (midNode.keyByte < keyByte)
-                {
-                    minIndex = midIndex + 1;
-                }
-                // 찾을 노드 < 가운데 노드
-                else
-                {
-                    maxIndex = midIndex - 1;
-                }
-            }
-
-            childNode = null;
-            return false;
-        }
-    }
-
-    ReadOnlyByteSpanTree<TValue> originalTree;
-    Span<TValue> valueSpan;
-
-    public TempByteSpanTree(ReadOnlyByteSpanTree<TValue> originalTree, Span<TValue> valueBuffer)
-    {
-        this.originalTree = originalTree;
-        this.valueSpan = valueBuffer;
+        Marshal.FreeHGlobal((IntPtr)valueArray);
+        valueArray = null;
     }
 }
