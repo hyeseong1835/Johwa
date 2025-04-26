@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Johwa.Common.Collection;
@@ -6,7 +5,7 @@ namespace Johwa.Common.Collection;
 /// <summary>
 /// UnmanagedStack는 관리되지 않는 메모리에서 스택을 구현합니다. <br/>
 /// <br/>
-/// 이 구조체를 더 이상 사용하지 않을 때 IDisposable를 호출해야합니다.
+/// 이 구조체를 더 이상 사용하지 않을 때 Dispose()를 호출해야합니다.
 /// </summary>
 /// <typeparam name="T"></typeparam>
 unsafe public struct UnmanagedStack<T> : IDisposable
@@ -38,12 +37,12 @@ unsafe public struct UnmanagedStack<T> : IDisposable
         return ref valueRef;
     }
     
-    public T Pop()
+    public ref T Pop()
     {
         if (topIndex < 0)
             throw new InvalidOperationException("Stack이 비었습니다.");
 
-        return stack[topIndex];
+        return ref stack[topIndex];
     }
 
     public ref T Peek()
@@ -52,18 +51,6 @@ unsafe public struct UnmanagedStack<T> : IDisposable
             throw new InvalidOperationException("Stack이 비었습니다.");
 
         return ref stack[topIndex];
-    }
-
-    public bool TryPop([NotNullWhen(true)] out T value)
-    {
-        if (topIndex < 0)
-        {
-            value = default;
-            return false;
-        }
-
-        value = stack[topIndex--];
-        return true;
     }
 
     public void Dispose()
