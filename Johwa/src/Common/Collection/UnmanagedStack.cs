@@ -23,7 +23,7 @@ unsafe public struct UnmanagedStack<T> : IDisposable
         this.topIndex = -1;
 
         // 관리되지 않는 힙에 메모리 할당
-        this.stack = (T*)Marshal.AllocHGlobal(size * sizeof(T));
+        this.stack = (T*)Marshal.AllocHGlobal(sizeof(T) * size);
     }
 
     public ref T Push(T value)
@@ -31,9 +31,14 @@ unsafe public struct UnmanagedStack<T> : IDisposable
         if (topIndex + 1 >= size)
             throw new InvalidOperationException("버퍼가 가득 찼습니다.");
 
-        ref T valueRef = ref stack[++topIndex];
+        // 다음 위치로 이동
+        topIndex++;
+        ref T valueRef = ref stack[topIndex];
+
+        // 값 할당
         valueRef = value;
 
+        // 참조 반환
         return ref valueRef;
     }
     
@@ -42,7 +47,7 @@ unsafe public struct UnmanagedStack<T> : IDisposable
         if (topIndex < 0)
             throw new InvalidOperationException("Stack이 비었습니다.");
 
-        return ref stack[topIndex];
+        return ref stack[topIndex--];
     }
 
     public ref T Peek()
