@@ -280,18 +280,21 @@ public class ReadOnlyByteSpanTree<TValue>
             public int nodeCount;
             public int valueCount;
             public int maxNodeDepth;
+            public int maxBranchDepth;
 
             public BuildData()
             {
-                nodeCount = 0;
-                valueCount = 0;
-                maxNodeDepth = 0;
+                this.nodeCount = 0;
+                this.valueCount = 0;
+                this.maxNodeDepth = 0;
+                this.maxBranchDepth = 0;
             }
-            public BuildData(int nodeCount = 0, int valueCount = 0, int maxNodeDepth = 0)
+            public BuildData(int nodeCount = 0, int valueCount = 0, int maxNodeDepth = 0, int maxBranchDepth = 0)
             {
                 this.nodeCount = nodeCount;
                 this.valueCount = valueCount;
                 this.maxNodeDepth = maxNodeDepth;
+                this.maxBranchDepth = maxBranchDepth;
             }
         }
         
@@ -311,6 +314,7 @@ public class ReadOnlyByteSpanTree<TValue>
             return new ReadOnlyByteSpanTree<TValue>(
                 CreateEmptyTreeRootNode(),
                 0, 
+                0,
                 0
             );
         }
@@ -330,7 +334,8 @@ public class ReadOnlyByteSpanTree<TValue>
                     value
                 ), 
                 1, 
-                1
+                1,
+                0
             );
         }
 
@@ -340,7 +345,7 @@ public class ReadOnlyByteSpanTree<TValue>
         /// <param name="byteNodeList"></param>
         /// <param name="childFindByteIndex"></param>
         /// <returns></returns>
-        static ReadOnlyByteSpanTree<TValue> CreateBranchTree(byte[] keySlice, ByteNode.List byteNodeList)
+        static ReadOnlyByteSpanTree<TValue> CreateBranchTree(byte[] keySlice, ByteNode.List byteNodeList, int branchDepth)
         {
             BuildData buildData = new (
                 nodeCount: 1
@@ -349,6 +354,7 @@ public class ReadOnlyByteSpanTree<TValue>
             Node[] childNodeArray 
                 = Builder.CreateNodeArray(
                     1,
+                    branchDepth,
                     byteNodeList, 
                     ref buildData
                 );
@@ -359,7 +365,8 @@ public class ReadOnlyByteSpanTree<TValue>
                     childNodeArray
                 ),
                 buildData.valueCount, 
-                buildData.maxNodeDepth
+                buildData.maxNodeDepth,
+                buildData.maxBranchDepth
             );
         }
         
@@ -371,7 +378,7 @@ public class ReadOnlyByteSpanTree<TValue>
         /// <param name="byteNodeList"></param>
         /// <param name="childFindByteIndex"></param>
         /// <returns></returns>
-        static ReadOnlyByteSpanTree<TValue> CreateValueBranchTree(byte[] keySlice, TValue value, ByteNode.List byteNodeList)
+        static ReadOnlyByteSpanTree<TValue> CreateValueBranchTree(byte[] keySlice, TValue value, ByteNode.List byteNodeList, int branchDepth)
         {
             BuildData buildData = new (
                 nodeCount: 1
@@ -380,6 +387,7 @@ public class ReadOnlyByteSpanTree<TValue>
             Node[] childNodeArray 
                 = Builder.CreateNodeArray(
                     2,
+                    branchDepth,
                     byteNodeList, 
                     ref buildData
                 );
@@ -391,7 +399,8 @@ public class ReadOnlyByteSpanTree<TValue>
                     childNodeArray
                 ), 
                 buildData.valueCount, 
-                buildData.maxNodeDepth
+                buildData.maxNodeDepth,
+                buildData.maxBranchDepth
             );
         }
 
@@ -403,14 +412,16 @@ public class ReadOnlyByteSpanTree<TValue>
         /// 값 노드 생성
         /// </summary>
         /// <param name="value"></param>
-        static Node CreateValueNode(byte[] keySlice, TValue value, int nodeDepth, ref BuildData buildData)
+        static Node CreateValueNode(byte[] keySlice, TValue value, int nodeDepth, int branchDepth, ref BuildData buildData)
         {
             buildData.maxNodeDepth = Math.Max(buildData.maxNodeDepth, nodeDepth);
+            buildData.maxBranchDepth = Math.Max(buildData.maxBranchDepth, branchDepth);
 
             return ReadOnlyByteSpanTree<TValue>.CreateValueNode(
                 buildData.nodeCount++, 
                 keySlice, 
-                new ValueInfo(value, buildData.valueCount++)
+                new ValueInfo(value, buildData.valueCount++),
+                branchDepth
             );
         }
 
@@ -419,12 +430,13 @@ public class ReadOnlyByteSpanTree<TValue>
         /// </summary>
         /// <param name="keyByte"></param>
         /// <param name="childNodeInfo"></param>
-        static Node CreateBranchNode(byte[] keySlice, Node[] childNodeArray, ref BuildData buildData)
+        static Node CreateBranchNode(byte[] keySlice, Node[] childNodeArray, int branchDepth, ref BuildData buildData)
         {
             return ReadOnlyByteSpanTree<TValue>.CreateBranchNode(
                 buildData.nodeCount++, 
                 keySlice, 
-                childNodeArray
+                childNodeArray,
+                branchDepth
             );
         }
 
@@ -434,13 +446,14 @@ public class ReadOnlyByteSpanTree<TValue>
         /// <param name="keyByte"></param>
         /// <param name="childNodeInfo"></param>
         /// <param name="value"></param>
-        static Node CreateValueBranchNode(byte[] keySlice, TValue value, Node[] childNodeArray, ref BuildData buildData)
+        static Node CreateValueBranchNode(byte[] keySlice, TValue value, Node[] childNodeArray, int branchDepth, ref BuildData buildData)
         {
             return ReadOnlyByteSpanTree<TValue>.CreateValueBranchNode(
                 buildData.nodeCount++, 
                 keySlice, 
                 new ValueInfo(value, buildData.valueCount++), 
-                childNodeArray
+                childNodeArray,
+                branchDepth
             );
         }
 
@@ -448,7 +461,7 @@ public class ReadOnlyByteSpanTree<TValue>
 
         #region 재귀적 노드 생성
 
-        static Node CreateNode(byte[] keySlice, ref ByteNode byteNode, int nodeDepth, ref BuildData buildData)
+        static Node CreateNode(byte[] keySlice, ref ByteNode byteNode, int nodeDepth, int branchDepth, ref BuildData buildData)
         {
             // 자식이 없음 -> 값 노드
             if (byteNode.childList.IsEmpty)
@@ -459,6 +472,7 @@ public class ReadOnlyByteSpanTree<TValue>
                         keySlice,
                         value,
                         nodeDepth,
+                        branchDepth,
                         ref buildData
                     );
                 }
@@ -472,6 +486,7 @@ public class ReadOnlyByteSpanTree<TValue>
             {
                 Node[] childNodeArray = Builder.CreateNodeArray(
                     nodeDepth, 
+                    branchDepth,
                     byteNode.childList, 
                     ref buildData
                 );
@@ -483,6 +498,7 @@ public class ReadOnlyByteSpanTree<TValue>
                         keySlice,
                         value,
                         childNodeArray,
+                        branchDepth,
                         ref buildData
                     );
                 }
@@ -492,19 +508,26 @@ public class ReadOnlyByteSpanTree<TValue>
                     return Builder.CreateBranchNode(
                         keySlice,
                         childNodeArray,
+                        branchDepth,
                         ref buildData
                     );
                 }
             }
         }
         
-        static Node[] CreateNodeArray(int parentNodeDepth, ByteNode.List byteNodeList, ref BuildData buildData)
+        static Node[] CreateNodeArray(int parentNodeDepth, int parentBranchDepth, ByteNode.List byteNodeList, ref BuildData buildData)
         {
-            Node[] childArray = new Node[byteNodeList.Count];
+            int byteNodeListCount = byteNodeList.Count;
+            
+            if (byteNodeListCount == 0)
+                throw new ArgumentException("byteNodeList가 비었습니다.");
 
             ByteNode.List.Iterator byteNodeIterator = byteNodeList.GetIterator();
 
-            for (int i = 0; i < byteNodeList.Count; i++)
+            Node[] childArray = new Node[byteNodeListCount];
+
+            // 자식 노드가 1개
+            if (byteNodeListCount == 1)
             {
                 if (byteNodeIterator.MoveNext())
                 {
@@ -514,16 +537,44 @@ public class ReadOnlyByteSpanTree<TValue>
                     ref ByteNode nextByteNode = ref GetNextValueOrBranchNode(ref byteNode, out keySlice);
 
                     // 자식 노드 생성
-                    childArray[i] = CreateNode(
+                    childArray[0] = CreateNode(
                         keySlice,
                         ref nextByteNode,
                         parentNodeDepth + keySlice.Length, 
+                        parentBranchDepth,
                         ref buildData
                     );
                 }
                 else
                 {
                     throw new Exception("잘못된 노드가 있습니다.");
+                }
+            }
+            // 자식 노드가 2개 이상
+            else
+            {
+                for (int i = 0; i < byteNodeList.Count; i++)
+                {
+                    if (byteNodeIterator.MoveNext())
+                    {
+                        ref ByteNode byteNode = ref byteNodeIterator.Current;
+
+                        byte[] keySlice;
+                        ref ByteNode nextByteNode = ref GetNextValueOrBranchNode(ref byteNode, out keySlice);
+
+                        // 자식 노드 생성
+                        childArray[i] = CreateNode(
+                            keySlice,
+                            ref nextByteNode,
+                            parentNodeDepth + keySlice.Length, 
+                            parentBranchDepth + 1,
+                            ref buildData
+                        );
+                    }
+                    else
+                    {
+                        throw new Exception("잘못된 노드가 있습니다.");
+                    }
                 }
             }
 
@@ -649,6 +700,7 @@ public class ReadOnlyByteSpanTree<TValue>
             {
                 return Builder.CreateEmptyTree();
             }
+            // 바이트 노드가 있음
             else
             {
                 ref ByteNode startNode = ref byteNodeList.HeadByteNode;
@@ -669,11 +721,12 @@ public class ReadOnlyByteSpanTree<TValue>
                     }
                     else
                     {
-                        // 값을 가지며 동시에 여러 자식을 갖는 트리 생성
+                        // 값을 가지며 동시에 하나 이상의 자식을 갖는 트리 생성
                         return Builder.CreateValueBranchTree(
                             keySlice,
                             value, 
-                            nextByteNode.childList
+                            nextByteNode.childList,
+                            1
                         );
                     }
                 }
@@ -685,10 +738,11 @@ public class ReadOnlyByteSpanTree<TValue>
                     }
                     else
                     {
-                        // 값을 가지며 동시에 여러 자식을 갖는 트리 생성
+                        // 둘 이상의 자식을 갖는 트리 생성
                         return Builder.CreateBranchTree(
                             keySlice,
-                            nextByteNode.childList
+                            nextByteNode.childList,
+                            1
                         );
                     }
                 }
@@ -838,6 +892,8 @@ public class ReadOnlyByteSpanTree<TValue>
 
         public readonly ValueInfo? valueInfo;
 
+        public readonly int branchDepth;
+
         Node? parentNode;
         public Node? ParentNode => parentNode;
         public readonly Node[]? childNodeArray;
@@ -845,7 +901,7 @@ public class ReadOnlyByteSpanTree<TValue>
 
         #region Constructor
 
-        public Node(int nodeIndex, byte[] keySlice, ValueInfo? valueInfo, Node[]? childNodeArray)
+        public Node(int nodeIndex, byte[] keySlice, ValueInfo? valueInfo, Node[]? childNodeArray, int branchDepth)
         {
             this.nodeIndex = nodeIndex;
             this.keySlice = keySlice;
@@ -853,7 +909,6 @@ public class ReadOnlyByteSpanTree<TValue>
             this.valueInfo = valueInfo;
 
             this.childNodeArray = childNodeArray;
-
             if (childNodeArray != null)
             {
                 for (int i = 0; i < childNodeArray.Length; i++)
@@ -862,6 +917,7 @@ public class ReadOnlyByteSpanTree<TValue>
                     childNode.parentNode = this;
                 }
             }
+            this.branchDepth = branchDepth;
         }
 
         #endregion
@@ -872,12 +928,16 @@ public class ReadOnlyByteSpanTree<TValue>
         /// <param name="keySlice">찾을 keySlice</param>
         /// <param name="childNode">찾은 노드</param>
         /// <returns>지정한 keyByte를 가진 노드의 존재 여부</returns>
-        public bool TryFindChildNode(byte keySliceStartByte, [NotNullWhen(true)] out Node? childNode)
+        public bool TryFindChildNode(ReadOnlySpan<byte> findKeySlice, [NotNullWhen(true)] out Node? childNode)
         {
+            // 자식 노드가 없음 -> null/false
             if (childNodeArray == null) {
                 childNode = null;
                 return false;
             }
+
+            int findKeySliceLength = findKeySlice.Length;
+            byte targetNodeKeySliceStart = findKeySlice[0];
 
             int minIndex = 0;
             int maxIndex = childNodeArray.Length - 1;
@@ -886,16 +946,36 @@ public class ReadOnlyByteSpanTree<TValue>
             {
                 int midIndex = (minIndex + maxIndex) / 2;
                 Node midNode = childNodeArray[midIndex];
+                byte[] midNodeKeySlice = midNode.keySlice;
                 byte midNodeKeySliceStart = midNode.keySlice[0];
 
                 // 가운데 노드 == 찾을 노드
-                if (midNodeKeySliceStart == keySliceStartByte)
+                if (midNodeKeySliceStart == targetNodeKeySliceStart)
                 {
+                    int midNodeKeySliceLength = midNodeKeySlice.Length;
+
+                    // 키 조각의 길이가 다름 -> null/false
+                    if (midNodeKeySliceLength != findKeySliceLength) {
+                        childNode = null;
+                        return false;
+                    }
+
+                    // 키 조각 검사
+                    for (int i = 1; i < midNodeKeySliceLength; i++)
+                    {
+                        // 키 조각이 다름 -> null/false
+                        if (midNodeKeySlice[i] != findKeySlice[i]) {
+                            childNode = null;
+                            return false;
+                        }
+                    }
+
+                    // 키 조각이 모두 같음 -> midNode/true
                     childNode = midNode;
                     return true;
                 }
                 // 가운데 노드 < 찾을 노드
-                else if (midNodeKeySliceStart < keySliceStartByte)
+                else if (midNodeKeySliceStart < targetNodeKeySliceStart)
                 {
                     minIndex = midIndex + 1;
                 }
@@ -1078,13 +1158,14 @@ public class ReadOnlyByteSpanTree<TValue>
     /// 값만 가진 노드 생성
     /// </summary>
     /// <param name="value"></param>
-    static Node CreateValueNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo)
+    static Node CreateValueNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo, int branchDepth)
     {
         return new Node(
             nodeIndex,
             keySlice,
             valueInfo,
-            null
+            null,
+            branchDepth
         );
     }
 
@@ -1093,13 +1174,14 @@ public class ReadOnlyByteSpanTree<TValue>
     /// </summary>
     /// <param name="keySlice"></param>
     /// <param name="childNodeArray"></param>
-    static Node CreateBranchNode(int nodeIndex, byte[] keySlice, Node[] childNodeArray)
+    static Node CreateBranchNode(int nodeIndex, byte[] keySlice, Node[] childNodeArray, int branchDepth)
     {
         return new Node(
             nodeIndex,
             keySlice,
             null,
-            childNodeArray
+            childNodeArray,
+            branchDepth
         );
     }
 
@@ -1109,13 +1191,14 @@ public class ReadOnlyByteSpanTree<TValue>
     /// <param name="keyByte"></param>
     /// <param name="childNodeInfo"></param>
     /// <param name="value"></param>
-    static Node CreateValueBranchNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo, Node[] childNodeArray)
+    static Node CreateValueBranchNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo, Node[] childNodeArray, int branchDepth)
     {
         return new Node(
             nodeIndex,
             keySlice,
             valueInfo,
-            childNodeArray
+            childNodeArray,
+            branchDepth
         );
     }
 
@@ -1129,7 +1212,8 @@ public class ReadOnlyByteSpanTree<TValue>
             = ReadOnlyByteSpanTree<TValue>.CreateBranchNode(
                 0,
                 new byte[0],
-                new Node[0]
+                new Node[0],
+                0
             );
 
         return emptyNode;
@@ -1141,7 +1225,8 @@ public class ReadOnlyByteSpanTree<TValue>
             = ReadOnlyByteSpanTree<TValue>.CreateValueNode(
                 0, 
                 keySlice, 
-                new ValueInfo(value, 0)
+                new ValueInfo(value, 0),
+                0
             );
 
         return valueNode;
@@ -1153,7 +1238,8 @@ public class ReadOnlyByteSpanTree<TValue>
             = ReadOnlyByteSpanTree<TValue>.CreateBranchNode(
                 0,
                 keySlice,
-                childNodeArray
+                childNodeArray,
+                1
             );
 
         return branchNode;
@@ -1166,7 +1252,8 @@ public class ReadOnlyByteSpanTree<TValue>
                 0, 
                 keySlice,
                 new ValueInfo(value, 0),
-                childNodeArray
+                childNodeArray,
+                1
             );
 
         return valueBranchNode;
@@ -1194,7 +1281,8 @@ public class ReadOnlyByteSpanTree<TValue>
                 return ReadOnlyByteSpanTree<TNewValue>.CreateBranchNode(
                     originalNode.nodeIndex,
                     originalNode.keySlice,
-                    newChildNodeArray
+                    newChildNodeArray,
+                    originalNode.branchDepth
                 );
             }
         }
@@ -1215,7 +1303,8 @@ public class ReadOnlyByteSpanTree<TValue>
                 return ReadOnlyByteSpanTree<TNewValue>.CreateValueNode(
                     originalNode.nodeIndex,
                     originalNode.keySlice,
-                    newValueInfo
+                    newValueInfo,
+                    originalNode.branchDepth
                 );
             }
             // 자식 있음
@@ -1229,7 +1318,8 @@ public class ReadOnlyByteSpanTree<TValue>
                     originalNode.nodeIndex,
                     originalNode.keySlice,
                     newValueInfo, 
-                    newChildNodeArray
+                    newChildNodeArray,
+                    originalNode.branchDepth
                 );
             }
         }
@@ -1259,12 +1349,14 @@ public class ReadOnlyByteSpanTree<TValue>
     readonly Node rootNode;
     public readonly int valueCount;
     public readonly int maxNodeDepth;
+    public readonly int maxBranchDepth;
 
-    ReadOnlyByteSpanTree(Node rootNode, int valueCount, int maxNodeDepth)
+    ReadOnlyByteSpanTree(Node rootNode, int valueCount, int maxNodeDepth, int maxBranchDepth)
     {
         this.rootNode = rootNode;
         this.valueCount = valueCount;
         this.maxNodeDepth = maxNodeDepth;
+        this.maxBranchDepth = maxBranchDepth;
     }
 
 
@@ -1334,7 +1426,8 @@ public class ReadOnlyByteSpanTree<TValue>
         return new ReadOnlyByteSpanTree<TNewValue>(
             CreateNewTreeNode(rootNode, valueSelector), 
             valueCount, 
-            maxNodeDepth
+            maxNodeDepth,
+            maxBranchDepth
         );
     }
     static ReadOnlyByteSpanTree<TNewValue>.Node CreateNewTreeNode<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
@@ -1343,7 +1436,8 @@ public class ReadOnlyByteSpanTree<TValue>
             originalNode.nodeIndex,
             originalNode.keySlice,
             CreateNewTreeNodeValueInfo(originalNode, valueSelector),
-            CreateNewTreeNodeChildNodeArray(originalNode, valueSelector)
+            CreateNewTreeNodeChildNodeArray(originalNode, valueSelector),
+            originalNode.branchDepth
         );
     }
     static ReadOnlyByteSpanTree<TNewValue>.ValueInfo? CreateNewTreeNodeValueInfo<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
@@ -1382,60 +1476,18 @@ public class ReadOnlyByteSpanTree<TValue>
     }
 
     internal NodeIterator GetNodeIterator()
-        => new NodeIterator(this);
+        => new NodeIterator(rootNode, maxBranchDepth);
 
     internal Node GetNode(ReadOnlySpan<byte> key)
     {
-        int keyLength = key.Length;
-
-        // 키의 길이가 0임 -> 오류
-        if (key.Length == 0)
-            throw new ArgumentException("키의 길이는 0보다 길어야 합니다.");
-
-        Node? findNode = rootNode;
-        int keyFindByteIndex = 0;
-           
-        while (keyFindByteIndex <= keyLength)
+        if (TryGetNode(key, out Node? node))
         {
-            byte[] findNodeKeySlice = findNode.keySlice;
-            int findNodeKeySliceLength = findNode.keySlice.Length;
-
-            if (findNodeKeySliceLength == 0)
-                throw new Exception("잘못된 노드가 존재합니다.");
-
-            // 찾은 노드 키 구성 확인
-            for (int i = 1; i < findNodeKeySliceLength; i++)
-            {
-                // 루트 자식 찾기
-                byte keyByte = key[keyFindByteIndex++];
-                byte findNodeKeyByte = findNodeKeySlice[i];
-
-                // 찾은 노드와 키 구성이 다르면
-                if (keyByte != findNodeKeyByte)
-                    throw new KeyNotFoundException($"'{Encoding.ASCII.GetString(key)}' 키를 찾을 수 없습니다.");
-            }
-
-            // 키 전부 탐색 -> 찾은 노드 반환
-            if (keyFindByteIndex == keyLength)
-            {
-                // 찾았다!
-                return findNode;
-            }
-
-            byte childNodeKeySliceStartByte = key[keyFindByteIndex++];
-            if (findNode.TryFindChildNode(childNodeKeySliceStartByte, out findNode))
-            {
-                // 찾은 노드로 이동
-                continue;
-            }
-            else
-            {
-                // 자식 노드를 찾을 수 없음
-                throw new KeyNotFoundException($"'{Encoding.ASCII.GetString(key)}' 키를 찾을 수 없습니다.");
-            }
+            return node;
         }
-
-        throw new KeyNotFoundException($"'{Encoding.ASCII.GetString(key)}' 키를 찾을 수 없습니다.");
+        else
+        {
+            throw new KeyNotFoundException($"'{Encoding.ASCII.GetString(key)}' 키를 찾을 수 없습니다.");
+        }
     }
 
     internal bool TryGetNode(ReadOnlySpan<byte> key, [NotNullWhen(true)] out Node? node)
@@ -1447,16 +1499,18 @@ public class ReadOnlyByteSpanTree<TValue>
         }
 
         Node? findNode = rootNode;
-        int keyFindByteIndex = 0;
+        int keySliceStartIndex = 0;
            
-        while (keyFindByteIndex < key.Length)
+        while (keySliceStartIndex < key.Length)
         {
-            // 루트 자식 찾기
-            byte keyByte = key[keyFindByteIndex];
+            int findNodeKeySliceLength = findNode.keySlice.Length;
 
-            if (findNode.TryFindChildNode(keyByte, out findNode))
+            // 자식 찾기
+            if (findNode.TryFindChildNode(key.Slice(keySliceStartIndex, findNodeKeySliceLength), out findNode))
             {
-                keyFindByteIndex+;
+                // 키 조각 시작 인덱스 업데이트
+                keySliceStartIndex += findNodeKeySliceLength;
+                continue;
             }
             else
             {
