@@ -8,5 +8,5 @@ namespace Johwa.Event.Data;
 /// </summary>
 public interface IEventDataContainer
 {
-
+    
 }
