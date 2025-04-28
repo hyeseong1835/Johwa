@@ -1,43 +1,8 @@
 using System.Text.Json;
-using Johwa.Common.Extension.System;
-using Johwa.Common.Collection;
 using Johwa.Common.Debug;
 using System.Text;
 
 namespace Johwa.Event.Data;
-
-public abstract class EventDataContainerMetadata
-{
-    #region Instance
-
-    public readonly Type containerType;
-    public readonly ReadOnlyByteSpanTree<EventDataDescriptor> dataDescriptorTree;
-    public readonly EventFieldDescriptor[] fieldDescriptorArray;
-    public readonly EventDataGroupDescriptor[] dataGroupDescriptorArray;
-    public readonly int minDataCount;
-
-    protected EventDataContainerMetadata(Type containerType)
-    {
-        this.containerType = containerType;
-
-        EventDataDescriptor[] dataDescriptorArray;
-
-        IEventDataGroup.CreateDescriptors(containerType, 
-            out fieldDescriptorArray, out dataGroupDescriptorArray,
-            out dataDescriptorArray, out minDataCount);
-
-        // 설명자 트리
-        ReadOnlyByteSpanTree<EventDataDescriptor>.Builder dataDescriptorTreeBuilder = new();
-        for (int i = 0; i < dataDescriptorArray.Length; i++)
-        {
-            EventDataDescriptor dataDescriptor = dataDescriptorArray[i];
-            dataDescriptorTreeBuilder.Add(dataDescriptor.name.AsByteSpan(), dataDescriptor);
-        }
-        dataDescriptorTree = dataDescriptorTreeBuilder.BuildAndDispose();
-    }
-
-    #endregion
-}
 
 public abstract class EventDataContainer : IEventDataGroup, IDisposable
 {

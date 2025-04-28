@@ -7,8 +7,8 @@ public interface IEventDataGroup
     #region Static
 
     public static void CreateDescriptors(Type groupType, 
-        out EventFieldDescriptor[] fieldDescriptorArray, 
         out EventDataGroupDescriptor[] dataGroupDescriptorArray,
+        out EventFieldDescriptor[] fieldDescriptorArray, 
         out EventDataDescriptor[] dataDescriptorArray,
         out int minDataCount)
     {
