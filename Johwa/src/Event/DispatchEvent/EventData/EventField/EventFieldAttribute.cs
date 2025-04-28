@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace Johwa.Event.Data;
 
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = true)]
@@ -17,6 +15,6 @@ public class EventFieldAttribute : Attribute
         this.isOptional = isOptional;
         this.isNullable = isNullable;
     }
-    public EventFieldInfo CreateDescriptor(FieldInfo fieldInfo)
-        => new EventFieldInfo(fieldInfo, name, isOptional, isNullable);
+    public EventFieldInfo CreateDescriptor()
+        => new EventFieldInfo(name, isOptional, isNullable);
 }

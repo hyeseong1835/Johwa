@@ -3,17 +3,21 @@ using Johwa.Event.Data;
 using Johwa.Common.Debug;
 using Johwa.Common.Extension.System.Text.Json;
 using Johwa.Common;
+using System.Runtime.InteropServices;
 
 namespace Johwa.Event.DispatchEvents;
 
 [DispatchEvent(DispatchEventType.GUILD_CREATE)]
 public class GuildCreateEvent : DispatchEvent
 {
-    public override void Handle(DiscordGatewayClient client, ReadOnlyMemory<byte> dataMemory)
+    unsafe public override void Handle(DiscordGatewayClient client, ReadOnlyMemory<byte> dataMemory)
     {
         // 핸들 컨텍스트 얻기
-        EventHandleContext<AvailableGuildCreateEventData>? availableEventDataContext = EventHandler<AvailableGuildCreateEventData>.GetContext(client);
-        EventHandleContext<UnavailableGuildCreateEventData>? unavailableEventDataContext = EventHandler<UnavailableGuildCreateEventData>.GetContext(client);
+        EventHandleContext<AvailableGuildCreateEventData>? availableEventDataContext 
+            = EventHandler<AvailableGuildCreateEventData>.GetContext(client);
+            
+        EventHandleContext<UnavailableGuildCreateEventData>? unavailableEventDataContext 
+            = EventHandler<UnavailableGuildCreateEventData>.GetContext(client);
         
         // 핸들러 보유 여부 : 컨텍스트가 존재하고 활성화된 핸들러의 개수가 1 이상이면 true
         bool hasEnabledAvailableEventData = availableEventDataContext != null && availableEventDataContext.enabledHandlerCount > 0;
@@ -29,7 +33,10 @@ public class GuildCreateEvent : DispatchEvent
 
         // unavailable 찾기
         if (reader.TryFindPropertyName("unavailable") == false) {
-            JohwaLogger.Log(LogSeverity.Error, "GuildCreateEvent의 데이터에 \"unavailable\" 속성이 존재하지 않습니다.");
+            JohwaLogger.Log(
+                "GuildCreateEvent의 데이터에 \"unavailable\" 속성이 존재하지 않습니다.",
+                severity: LogSeverity.Error
+            );
             return;
         }
         
@@ -38,18 +45,29 @@ public class GuildCreateEvent : DispatchEvent
 
         switch (reader.TokenType)
         {
-            case JsonTokenType.True: {
-                AvailableGuildCreateEventData eventData = new(dataMemory);
-                EventHandler<AvailableGuildCreateEventData>.OnHandled(client, eventData);
+            case JsonTokenType.True: 
+            {
+                // 이벤트 데이터 생성
+                ref AvailableGuildCreateEventData eventData 
+                    = ref IEventDataDocument.CreateDocument<AvailableGuildCreateEventData>(dataMemory);
+
+                EventHandler<AvailableGuildCreateEventData>.OnHandled(client, in eventData);
                 break;
             }
-            case JsonTokenType.False: {
-                UnavailableGuildCreateEventData eventData = new(dataMemory);
-                EventHandler<UnavailableGuildCreateEventData>.OnHandled(client, eventData);
+            case JsonTokenType.False: 
+            {
+                // 이벤트 데이터 생성
+                ref UnavailableGuildCreateEventData eventData
+                    = ref IEventDataDocument.CreateDocument<UnavailableGuildCreateEventData>(dataMemory);
+
+                EventHandler<UnavailableGuildCreateEventData>.OnHandled(client, in eventData);
                 break;
             }
             default: {
-                JohwaLogger.Log(LogSeverity.Error, "값 \"unavailable\"이 잘못되었습니다.");
+                JohwaLogger.Log(
+                    "값 \"unavailable\"이 잘못되었습니다.",
+                    severity: LogSeverity.Error
+                );
                 break;
             }
         }
@@ -57,13 +75,15 @@ public class GuildCreateEvent : DispatchEvent
     }
 }
 
-public abstract class GuildCreateEventData : EventDataDocument
+#nullable disable
+
+[StructLayout(LayoutKind.Sequential)]
+public struct AvailableGuildCreateEventData : IEventDataDocument
 {
-    public GuildCreateEventData(byte[] data) : base(data) { }
+    #region Instance
 
-    #region 프로퍼티
+    #region 필드
 
-    #nullable disable
     /// <summary>
     /// [ unavailable? (boolean) ] <br/>
     /// 길드가 사용 불가능한 상태인지 여부 <br/>
@@ -72,31 +92,16 @@ public abstract class GuildCreateEventData : EventDataDocument
     [EventField("unavailable")]
     public bool isUnavailable;
 
-    [EventProperty("id")]
-    public EventProperty<Snowflake> GuildId
-        => data.GetProperty("id").GetSnowflake();
-
-    #nullable enable
-    #endregion
-}
-
-public class AvailableGuildCreateEventData : EventDataDocument
-{
-    new public static EventDataDocumentMetadata metadata = new EventDataDocumentMetadata(typeof(AvailableGuildCreateEventData));
-
-
-    #region Instance
-
-    #region 필드
-    #nullable disable
+    [EventField("id")]
+    public Snowflake guildId;
 
     /// <summary>
     /// [ joined_at (ISO8601 timestamp) ] <br/>
     /// 봇이 서버에 가입한 시간 <br/>
     /// When this guild was joined at
     /// </summary>
-    [EventField("joined_at")]
-    public DeferredParseDateTimeProperty joinedAt;
+    //[EventField("joined_at")]
+    //public DeferredParseDateTimeProperty joinedAt;
 
     /// <summary>
     /// [ large (boolean) ] <br/>
@@ -178,28 +183,24 @@ public class AvailableGuildCreateEventData : EventDataDocument
     //public JsonSourceArraySource<SoundboardSoundObject> SoundboardSounds 
     //    => jsonElement.FindJsonSourceArraySource<SoundboardSoundObject>("soundboard_sounds");
 
-    #nullable enable
     #endregion
-
-
-    // 생성자
-    public AvailableGuildCreateEventData(
-        ReadOnlyMemory<byte> data) : base(metadata, data) { }
 
     #endregion
 }
 
-public class UnavailableGuildCreateEventData : EventDataDocument
+[StructLayout(LayoutKind.Sequential)]
+public struct UnavailableGuildCreateEventData : IEventDataDocument
 {
-    // Static
-    new public static EventDataDocumentMetadata metadata = new(typeof(UnavailableGuildCreateEventData));
+    /// <summary>
+    /// [ unavailable? (boolean) ] <br/>
+    /// 길드가 사용 불가능한 상태인지 여부 <br/>
+    /// true if this guild is unavailable due to an outage
+    /// </summary>
+    [EventField("unavailable")]
+    public bool isUnavailable;
 
-
-    #region Instance
-    
-    // 생성자
-    public UnavailableGuildCreateEventData(
-        ReadOnlyMemory<byte> data) : base(metadata, data) { }
-        
-    #endregion
+    [EventField("id")]
+    public Snowflake guildId;
 }
+
+#nullable enable

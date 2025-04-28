@@ -2,8 +2,10 @@ using Johwa.Event.Data;
 
 namespace Johwa.Event;
 
+public delegate void Event<TData>(in TData eventData);
+
 public class EventHandleContext<TData>
-    where TData : EventDataDocument
+    where TData : unmanaged, IEventDataDocument
 {
     public DiscordGatewayClient gatewayClient;
     public int enabledHandlerCount;
@@ -17,7 +19,7 @@ public class EventHandleContext<TData>
     }
 }
 public class EventHandler<TData> : IDisposable
-    where TData : EventDataDocument
+    where TData : unmanaged, IEventDataDocument
 {
     #region Static
 
@@ -57,7 +59,7 @@ public class EventHandler<TData> : IDisposable
         }
         return null;
     }
-    public static void OnHandled(DiscordGatewayClient gatewayClient, TData eventData)
+    public static void OnHandled(DiscordGatewayClient gatewayClient, in TData eventData)
     {
         EventHandleContext<TData>? context = GetContext(gatewayClient);
         if (context == null) return;
@@ -66,7 +68,10 @@ public class EventHandler<TData> : IDisposable
         for (int i = 0; i < context.handlers.Count; i++)
         {
             EventHandler<TData> handler = context.handlers[i];
-            if (handler.IsEnabled) handler.onHandled.Invoke(eventData);
+            if (handler.IsEnabled) 
+            {
+                handler.onHandled.Invoke(in eventData);
+            }
         }
 
         Console.WriteLine($"Event handled: {eventData.GetType().Name}");
@@ -83,35 +88,27 @@ public class EventHandler<TData> : IDisposable
 
         IsEnabled = false;
         context.handlers.Remove(this);
+
+        GC.SuppressFinalize(true);
     }
 
     // 필드
     public EventHandleContext<TData> context;
-    public Action<TData> onHandled;
+    public Event<TData> onHandled;
     public bool IsEnabled { 
-        get  => IsEnabled;
-        set {
-            if (isEnabled == value) return;
-
-            isEnabled = value;
-            
-            if (isEnabled) {
-                context.enabledHandlerCount++;
-            } 
-            else {
-                context.enabledHandlerCount--;
-            }
-        } 
+        get => IsEnabled;
+        set => SetEnable(value);
     }
     bool isEnabled = false;
 
     // 생성자
-    public EventHandler(DiscordGatewayClient gatewayClient, Action<TData> onHandled, bool isEnabled = true)
+    public EventHandler(DiscordGatewayClient gatewayClient, Event<TData> onHandled, bool isEnabled = true)
     {
         this.onHandled = onHandled;
         this.isEnabled = isEnabled;
         this.context = AddHandler(gatewayClient, this);
     }
+    
     // 종료자
     ~EventHandler()
     {
@@ -120,5 +117,20 @@ public class EventHandler<TData> : IDisposable
         Dispose();
     }
 
+    public void SetEnable(bool enable)
+    {
+        if (isEnabled == enable) return;
+
+        isEnabled = enable;
+        
+        if (enable) 
+        {
+            context.enabledHandlerCount++;
+        } 
+        else 
+        {
+            context.enabledHandlerCount--;
+        }
+    }
     #endregion
 }

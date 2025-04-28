@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Johwa.Common.Collection;
 
 namespace Johwa.Event.Data;
@@ -22,17 +21,24 @@ public class EventDataDocumentMetadata
         }
     }
 
+    static ReadOnlyByteSpanTree<EventDataInfo> CreateDataInfoTree(Type documentType)
+    {
+        ReadOnlyByteSpanTree<EventDataInfo>.Builder treeBuilder = new ();
+        documentType
+        return treeBuilder.BuildAndDispose();
+    }
+
     #endregion
 
 
     #region Instance
-    
+
     public ReadOnlyByteSpanTree<EventDataInfo> dataInfoTree;
 
     // 생성자
     public EventDataDocumentMetadata(Type documentType)
     {
-        Marshal.OffsetOf(documentType, )
+        this.dataInfoTree = CreateDataInfoTree(documentType);
     }
     #endregion
 }

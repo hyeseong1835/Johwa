@@ -12,7 +12,7 @@ namespace Johwa.Event.Data;
 /// </summary>
 unsafe public interface IEventDataDocument
 {
-    public static TDocument* CreateDocument<TDocument>(ReadOnlyMemory<byte> jsonData)
+    public static ref TDocument CreateDocument<TDocument>(ReadOnlyMemory<byte> jsonData)
         where TDocument: unmanaged, IEventDataDocument
     {
         Type documentType = typeof(TDocument);
@@ -45,6 +45,6 @@ unsafe public interface IEventDataDocument
                 );
             }
         }
-        return documentPtr;
+        return ref *documentPtr;
     }
 }
