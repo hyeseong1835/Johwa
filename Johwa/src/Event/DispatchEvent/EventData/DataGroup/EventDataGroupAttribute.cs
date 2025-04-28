@@ -4,8 +4,8 @@ namespace Johwa.Event.Data;
 
 public class EventDataGroupAttribute : Attribute
 {
-    public EventDataGroupDescriptor GetDescriptor(FieldInfo fieldInfo)
+    public EventDataGroupInfo GetDescriptor(FieldInfo fieldInfo)
     {
-        return new EventDataGroupDescriptor(fieldInfo);
+        return new EventDataGroupInfo(fieldInfo);
     }
 }

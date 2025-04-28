@@ -22,9 +22,9 @@ public class EventDataGroupMetadata
 
     // 필드
     public readonly Type dataType;
-    public readonly EventFieldDescriptor[] subFieldDescriptorArray;
+    public readonly EventFieldInfo[] subFieldDescriptorArray;
     public readonly EventPropertyDescriptor[] subPropertyDescriptorArray;
-    public readonly EventDataGroupDescriptor[] subDataGroupDescriptorArray;
+    public readonly EventDataGroupInfo[] subDataGroupDescriptorArray;
     public readonly int minDataCount;
     public readonly int dataDescriptorCount;
 

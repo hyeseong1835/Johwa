@@ -6,9 +6,9 @@ public abstract class EventDataGroup : IEventDataGroup
 
     public struct CreateData
     {
-        public EventDataGroupDescriptor descriptor;
+        public EventDataGroupInfo descriptor;
 
-        public CreateData(EventDataGroupDescriptor descriptor)
+        public CreateData(EventDataGroupInfo descriptor)
         {
             this.descriptor = descriptor;
         }
@@ -18,7 +18,7 @@ public abstract class EventDataGroup : IEventDataGroup
 
     // 필드
     public EventDataGroupMetadata metadata;
-    public EventDataGroupDescriptor descriptor;
+    public EventDataGroupInfo descriptor;
     public readonly EventFieldSet subFieldSet;
     public readonly EventPropertySet subPropertySet;
     public readonly EventDataGroupSet subGroupSet;

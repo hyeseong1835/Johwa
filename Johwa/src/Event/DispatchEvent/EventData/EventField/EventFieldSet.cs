@@ -6,7 +6,7 @@ public class EventFieldSet
     readonly List<EventField> list;
 
     // 생성자
-    public EventFieldSet(EventFieldDescriptor[] descriptors)
+    public EventFieldSet(EventFieldInfo[] descriptors)
     {
         list = new List<EventField>(descriptors.Length);
     }

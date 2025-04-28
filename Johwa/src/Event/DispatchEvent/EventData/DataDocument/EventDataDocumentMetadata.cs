@@ -1,3 +1,6 @@
+using System.Runtime.InteropServices;
+using Johwa.Common.Collection;
+
 namespace Johwa.Event.Data;
 
 public class EventDataDocumentMetadata
@@ -23,13 +26,13 @@ public class EventDataDocumentMetadata
 
 
     #region Instance
-
-    public EventField
+    
+    public ReadOnlyByteSpanTree<EventDataInfo> dataInfoTree;
 
     // 생성자
-    public EventDataDocumentMetadata(Type documentType) 
+    public EventDataDocumentMetadata(Type documentType)
     {
-
+        Marshal.OffsetOf(documentType, )
     }
     #endregion
 }

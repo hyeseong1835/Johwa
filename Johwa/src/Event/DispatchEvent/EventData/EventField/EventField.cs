@@ -22,12 +22,12 @@ public abstract class EventField : EventData
 
     public struct EventFieldCreateData
     {
-        public EventFieldDescriptor descriptor;
+        public EventFieldInfo descriptor;
         public IEventDataGroup declaringGroup;
         public ReadOnlyMemory<byte> data;
         public JsonTokenType tokenType;
 
-        public EventFieldCreateData(EventFieldDescriptor descriptor, IEventDataGroup declaringGroup,
+        public EventFieldCreateData(EventFieldInfo descriptor, IEventDataGroup declaringGroup,
             ReadOnlyMemory<byte> data, JsonTokenType tokenType)
         {
             this.descriptor = descriptor;
@@ -35,7 +35,7 @@ public abstract class EventField : EventData
             this.data = data;
             this.tokenType = tokenType;
         }
-        public EventFieldCreateData(EventFieldDescriptor descriptor, IEventDataGroup declaringGroup,
+        public EventFieldCreateData(EventFieldInfo descriptor, IEventDataGroup declaringGroup,
             ReadOnlyMemory<byte> data, JsonTokenType tokenType, Type dataType) : this(descriptor, declaringGroup, data, tokenType)
         {
             this.dataType = dataType;

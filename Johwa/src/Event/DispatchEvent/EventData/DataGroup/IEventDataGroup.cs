@@ -7,13 +7,13 @@ public interface IEventDataGroup
     #region Static
 
     public static void CreateDescriptors(Type groupType, 
-        out EventDataGroupDescriptor[] dataGroupDescriptorArray,
-        out EventFieldDescriptor[] fieldDescriptorArray, 
-        out EventDataDescriptor[] dataDescriptorArray,
+        out EventDataGroupInfo[] dataGroupDescriptorArray,
+        out EventFieldInfo[] fieldDescriptorArray, 
+        out EventDataInfo[] dataDescriptorArray,
         out int minDataCount)
     {
-        List<EventFieldDescriptor> fieldDescriptorList = new();
-        List<EventDataGroupDescriptor> dataGroupDescriptorList = new();
+        List<EventFieldInfo> fieldDescriptorList = new();
+        List<EventDataGroupInfo> dataGroupDescriptorList = new();
         int dataCount = 0;
         minDataCount = 0;
         
@@ -26,7 +26,7 @@ public interface IEventDataGroup
             // Field
             EventFieldAttribute? propertyAttribute = fieldInfo.GetCustomAttribute<EventFieldAttribute>();
             if (propertyAttribute != null) {
-                EventFieldDescriptor descriptor = propertyAttribute.CreateDescriptor(fieldInfo);
+                EventFieldInfo descriptor = propertyAttribute.CreateDescriptor(fieldInfo);
                 fieldDescriptorList.Add(descriptor);
                 dataCount++;
 
@@ -39,7 +39,7 @@ public interface IEventDataGroup
             // DataGroup
             EventDataGroupAttribute? propertyGroupAttribute = fieldInfo.GetCustomAttribute<EventDataGroupAttribute>();
             if (propertyGroupAttribute != null) {
-                EventDataGroupDescriptor descriptor = propertyGroupAttribute.GetDescriptor(fieldInfo);
+                EventDataGroupInfo descriptor = propertyGroupAttribute.GetDescriptor(fieldInfo);
                 dataGroupDescriptorList.Add(descriptor);
 
                 dataCount += descriptor.metadata.dataDescriptorCount;
@@ -53,7 +53,7 @@ public interface IEventDataGroup
         dataGroupDescriptorArray = dataGroupDescriptorList.ToArray();
 
         // 데이터 설명자 배열
-        dataDescriptorArray = new EventDataDescriptor[dataCount];
+        dataDescriptorArray = new EventDataInfo[dataCount];
         int dataDescriptorIndex = 0;
         for (int i = 0; i < fieldDescriptorArray.Length; i++)
         {
@@ -67,7 +67,7 @@ public interface IEventDataGroup
                 ref dataDescriptorIndex
             );
         }
-        static void AddGroupSubDescriptors(EventDataGroupDescriptor groupDescriptor, ref EventDataDescriptor[] dataDescriptorArray, ref int currentIndex)
+        static void AddGroupSubDescriptors(EventDataGroupInfo groupDescriptor, ref EventDataInfo[] dataDescriptorArray, ref int currentIndex)
         {
             for (int i = 0; i < groupDescriptor.metadata.subFieldDescriptorArray.Length; i++)
             {
@@ -79,7 +79,7 @@ public interface IEventDataGroup
             }
             for (int i = 0; i < groupDescriptor.metadata.subDataGroupDescriptorArray.Length; i++)
             {
-                EventDataGroupDescriptor subGroupDescriptor = groupDescriptor.metadata.subDataGroupDescriptorArray[i];
+                EventDataGroupInfo subGroupDescriptor = groupDescriptor.metadata.subDataGroupDescriptorArray[i];
                 AddGroupSubDescriptors(subGroupDescriptor, ref dataDescriptorArray, ref currentIndex);
             }
         }

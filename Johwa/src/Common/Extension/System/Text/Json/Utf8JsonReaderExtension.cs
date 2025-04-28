@@ -69,7 +69,7 @@ public static class Utf8JsonReaderExtension
     /// <param name="reader"></param>
     /// <param name="originalJson"></param>
     /// <returns></returns>
-    public static ReadOnlyMemory<byte> ReadAndSliceValue(this ref Utf8JsonReader reader, in ReadOnlyMemory<byte> originalJson)
+    public static ReadOnlyMemory<byte> ReadAndSliceValue(this ref Utf8JsonReader reader, ReadOnlyMemory<byte> originalJson)
     {
         // 값 시작 위치 기록
         int start = (int)reader.TokenStartIndex;

@@ -2,11 +2,11 @@ using System.Reflection;
 
 namespace Johwa.Event.Data;
 
-public class EventDataGroupDescriptor
+public class EventDataGroupInfo
 {
-    public FieldInfo fieldInfo;
+    public int memoryOffset;
 
-    public EventDataGroupDescriptor(FieldInfo fieldInfo)
+    public EventDataGroupInfo(FieldInfo fieldInfo)
     {
         this.fieldInfo = fieldInfo;
     }

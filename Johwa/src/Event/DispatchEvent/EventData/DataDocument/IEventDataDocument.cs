@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using Johwa.Common.Extension.System.Text.Json;
 
 namespace Johwa.Event.Data;
 
@@ -18,5 +20,31 @@ unsafe public interface IEventDataDocument
 
         TDocument* documentPtr = (TDocument*)Marshal.AllocHGlobal(sizeof(TDocument));
         
+        // Json 읽기
+        ReadOnlySpan<byte> jsonDataSpan = jsonData.Span;
+        Utf8JsonReader jsonReader = new(jsonDataSpan);
+
+        while (jsonReader.Read())
+        {
+            // 이름만 필터링
+            if (jsonReader.TokenType != JsonTokenType.PropertyName) continue;
+
+            // 데이터 이름
+            ReadOnlySpan<byte> jsonDataNameSpan = jsonReader.ValueSpan;
+
+            if (metadata.dataInfoTree.TryGetValue(jsonDataNameSpan, out EventDataInfo? dataInfo))
+            {
+                // jsonData에서 값 부분만 슬라이스
+                ReadOnlyMemory<byte> dataJsonData = jsonReader.ReadAndSliceValue(jsonData);
+
+                // 값 읽기
+                dataInfo.ReadData(
+                    documentPtr, 
+                    dataJsonData, 
+                    jsonReader.TokenType
+                );
+            }
+        }
+        return documentPtr;
     }
 }

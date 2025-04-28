@@ -8,16 +8,16 @@ public abstract class EventDataContainerMetadata
     #region Instance
 
     public readonly Type containerType;
-    public readonly ReadOnlyByteSpanTree<EventDataDescriptor> dataDescriptorTree;
-    public readonly EventDataGroupDescriptor[] dataGroupDescriptorArray;
-    public readonly EventFieldDescriptor[] fieldDescriptorArray;
+    public readonly ReadOnlyByteSpanTree<EventDataInfo> dataDescriptorTree;
+    public readonly EventDataGroupInfo[] dataGroupDescriptorArray;
+    public readonly EventFieldInfo[] fieldDescriptorArray;
     public readonly int minDataCount;
 
     protected EventDataContainerMetadata(Type containerType)
     {
         this.containerType = containerType;
 
-        EventDataDescriptor[] dataDescriptorArray;
+        EventDataInfo[] dataDescriptorArray;
 
         IEventDataGroup.CreateDescriptors(
             containerType, 
@@ -28,10 +28,10 @@ public abstract class EventDataContainerMetadata
         );
 
         // 설명자 트리
-        ReadOnlyByteSpanTree<EventDataDescriptor>.Builder dataDescriptorTreeBuilder = new();
+        ReadOnlyByteSpanTree<EventDataInfo>.Builder dataDescriptorTreeBuilder = new();
         for (int i = 0; i < dataDescriptorArray.Length; i++)
         {
-            EventDataDescriptor dataDescriptor = dataDescriptorArray[i];
+            EventDataInfo dataDescriptor = dataDescriptorArray[i];
             dataDescriptorTreeBuilder.Add(dataDescriptor.name.AsByteSpan(), dataDescriptor);
         }
         dataDescriptorTree = dataDescriptorTreeBuilder.BuildAndDispose();
