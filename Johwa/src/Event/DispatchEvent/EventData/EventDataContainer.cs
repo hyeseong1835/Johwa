@@ -115,5 +115,4 @@ public abstract class EventDataContainer : IEventDataGroup, IDisposable
     {
 
     }
-    
 }
