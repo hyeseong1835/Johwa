@@ -3,9 +3,9 @@ using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
-public class BoolField : EventFieldReader<bool>
+public class BoolFieldReader : EventFieldReader<bool>
 {
-    unsafe protected override bool Read(ReadData data)
+    protected override bool Read(ReadData data)
     {
         switch (data.jsonTokenType)
         {
