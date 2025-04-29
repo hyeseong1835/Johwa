@@ -6,39 +6,24 @@ using System.Text.Json;
 
 namespace Johwa.Event.Data;
 
-public abstract class EventField : EventData
+public abstract class EventField
 {
     #region Object
-
-    [AttributeUsage(AttributeTargets.Class)]
-    protected class EventPropertyAttribute : Attribute
-    {
-        public Type fieldType;
-        public EventPropertyAttribute(Type fieldType)
-        {
-            this.fieldType = fieldType;
-        }
-    }
 
     public struct EventFieldCreateData
     {
         public EventFieldInfo descriptor;
         public IEventDataGroup declaringGroup;
         public ReadOnlyMemory<byte> data;
-        public JsonTokenType tokenType;
+        public JsonTokenType jsonTokenType;
 
         public EventFieldCreateData(EventFieldInfo descriptor, IEventDataGroup declaringGroup,
-            ReadOnlyMemory<byte> data, JsonTokenType tokenType)
+            ReadOnlyMemory<byte> data, JsonTokenType jsonTokenType)
         {
             this.descriptor = descriptor;
             this.declaringGroup = declaringGroup;
             this.data = data;
-            this.tokenType = tokenType;
-        }
-        public EventFieldCreateData(EventFieldInfo descriptor, IEventDataGroup declaringGroup,
-            ReadOnlyMemory<byte> data, JsonTokenType tokenType, Type dataType) : this(descriptor, declaringGroup, data, tokenType)
-        {
-            this.dataType = dataType;
+            this.jsonTokenType = jsonTokenType;
         }
     }
     
@@ -210,6 +195,7 @@ public abstract class EventField : EventData
 
 
     #region Instance
+
 
 
     #endregion

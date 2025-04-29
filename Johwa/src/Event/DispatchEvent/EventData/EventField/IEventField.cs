@@ -10,25 +10,20 @@ public interface IEventField
 {
     #region Object
     
-    public struct EventFieldCreateData
+    public struct CreateData
     {
-        public EventFieldInfo descriptor;
-        public IEventDataGroup declaringGroup;
+        public EventFieldInfo info;
+        public nint fieldPtr;
         public ReadOnlyMemory<byte> data;
         public JsonTokenType tokenType;
 
-        public EventFieldCreateData(EventFieldInfo descriptor, IEventDataGroup declaringGroup,
+        public CreateData(EventFieldInfo descriptor, nint fieldPtr,
             ReadOnlyMemory<byte> data, JsonTokenType tokenType)
         {
-            this.descriptor = descriptor;
-            this.declaringGroup = declaringGroup;
+            this.info = descriptor;
+            this.fieldPtr = fieldPtr;
             this.data = data;
             this.tokenType = tokenType;
-        }
-        public EventFieldCreateData(EventFieldInfo descriptor, IEventDataGroup declaringGroup,
-            ReadOnlyMemory<byte> data, JsonTokenType tokenType, Type dataType) : this(descriptor, declaringGroup, data, tokenType)
-        {
-            this.dataType = dataType;
         }
     }
     
@@ -38,9 +33,11 @@ public interface IEventField
     #region Static
 
     // 필드
-    static Dictionary<Type, Func<EventFieldCreateData, EventField>> constructorDictionary = CreateConstructorDictionary();
+    static Dictionary<Type, Func<CreateData, EventField>> constructorDictionary = CreateConstructorDictionary();
 
     #region 메서드
+
+
 
     /// <summary>
     /// 캐시된 생성자를 찾거나 새로 캐시하여 실행합니다. <br/>
@@ -50,9 +47,9 @@ public interface IEventField
     /// </summary>
     /// <param name="createData"></param>
     /// <returns></returns>
-    public static EventField? CreateInstance(EventFieldCreateData createData)
+    public static EventField? CreateInstance(CreateData createData)
     {
-        Func<EventFieldCreateData, EventField>? constructor = GetConstructor(createData.dataType);
+        Func<CreateData, EventField>? constructor = GetConstructor(createData.dataType);
         if (constructor == null) {
             JohwaLogger.Log($"EventField의 생성자를 찾을 수 없습니다. : {createData.dataType}",
                 severity: LogSeverity.Warning, stackTrace: true);
@@ -63,9 +60,9 @@ public interface IEventField
     }
 
 
-    static Dictionary<Type, Func<EventFieldCreateData, EventField>> CreateConstructorDictionary()
+    static Dictionary<Type, Func<CreateData, EventField>> CreateConstructorDictionary()
     {
-        Dictionary<Type, Func<EventFieldCreateData, EventField>> dictionary = new();
+        Dictionary<Type, Func<CreateData, EventField>> dictionary = new();
         
         Assembly currentAssembly = Assembly.GetExecutingAssembly();
         Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
@@ -96,7 +93,7 @@ public interface IEventField
                 Type fieldType = attribute.fieldType;
                 
                 // 대상 타입을 정의하는 리더가 이미 존재하면
-                if (dictionary.TryGetValue(fieldType, out Func<EventFieldCreateData, EventField>? originalConstructor)) 
+                if (dictionary.TryGetValue(fieldType, out Func<CreateData, EventField>? originalConstructor)) 
                 {
                     Type originalConstructorType = originalConstructor.GetType();
 
@@ -104,7 +101,7 @@ public interface IEventField
                     if (originalConstructorType.Assembly == currentAssembly)
                     {
                         // 리더 생성 시도
-                        Func<EventFieldCreateData, EventField>? constructor;
+                        Func<CreateData, EventField>? constructor;
                         if (TryCreateConstructor(type, out constructor) == false) 
                             continue; // 실패 시 종료
 
@@ -124,7 +121,7 @@ public interface IEventField
                 else
                 {
                     // 리더 생성 시도
-                    Func<EventFieldCreateData, EventField>? constructor;
+                    Func<CreateData, EventField>? constructor;
                     if (TryCreateConstructor(type, out constructor) == false) 
                         continue; // 실패 시 종료
 
@@ -144,7 +141,7 @@ public interface IEventField
         /// <param name="readerType"></param>
         /// <param name="reader"></param>
         /// <returns>성공 여부</returns>
-        static bool TryCreateConstructor(Type fieldType, [NotNullWhen(true)] out Func<EventFieldCreateData, EventField>? reader)
+        static bool TryCreateConstructor(Type fieldType, [NotNullWhen(true)] out Func<CreateData, EventField>? reader)
         {
             // 제네릭 클래스임 
             if (fieldType.IsGenericType) {
@@ -164,25 +161,25 @@ public interface IEventField
             return true;
         }
     }
-    static Func<EventFieldCreateData, EventField>? GetConstructor(Type fieldType)
+    static Func<CreateData, EventField>? GetConstructor(Type fieldType)
     {
         // 캐시된 생성자 정보 로드
-        if (constructorDictionary.TryGetValue(fieldType, out Func<EventFieldCreateData, EventField>? constructor)) {
+        if (constructorDictionary.TryGetValue(fieldType, out Func<CreateData, EventField>? constructor)) {
             return constructor;
         }
 
         // 생성자 정보 생성
-        ConstructorInfo? constructorInfo = fieldType.GetConstructor([ typeof(EventFieldCreateData) ]);
+        ConstructorInfo? constructorInfo = fieldType.GetConstructor([ typeof(CreateData) ]);
         if (constructorInfo == null) {
             return null;
         }
 
         // 파라미터
-        ParameterExpression parameter = Expression.Parameter(typeof(EventFieldCreateData), "createData");
+        ParameterExpression parameter = Expression.Parameter(typeof(CreateData), "createData");
 
         // Expression
         NewExpression expression = Expression.New(constructorInfo, parameter);
-        Expression<Func<EventFieldCreateData, EventField>> lambda = Expression.Lambda<Func<EventFieldCreateData, EventField>>(expression, parameter);
+        Expression<Func<CreateData, EventField>> lambda = Expression.Lambda<Func<CreateData, EventField>>(expression, parameter);
         
         // 생성자 컴파일
         constructor = lambda.Compile();

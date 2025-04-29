@@ -10,8 +10,7 @@ public class JohwaLogger
         string message,
         string? detail = null,
         LogSeverity severity = LogSeverity.Info,
-        bool stackTrace = false
-        )
+        bool stackTrace = false)
     {
         LogInfo logInfo = new LogInfo
         {

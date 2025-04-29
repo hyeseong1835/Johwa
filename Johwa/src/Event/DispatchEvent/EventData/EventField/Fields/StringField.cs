@@ -8,7 +8,7 @@ public class StringField : EventField
 {
     public StringField(EventFieldCreateData createData)
     {
-        switch (createData.tokenType)
+        switch (createData.jsonTokenType)
         {
             case JsonTokenType.String: {
                 string value = createData.data.Span.ToString();
@@ -16,7 +16,7 @@ public class StringField : EventField
                 break;
             }
             default: {
-                JohwaLogger.Log($"JsonTokenType이 잘못된 형식입니다. : {createData.tokenType}",
+                JohwaLogger.Log($"JsonTokenType이 잘못된 형식입니다. : {createData.jsonTokenType}",
                     severity: LogSeverity.Error, stackTrace: true);
                 break;
             }
