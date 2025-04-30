@@ -250,11 +250,16 @@ public abstract class EventFieldReader
             }
         }
     }
-    internal static void ReadField(Type IEventField.CreateData createData)
+    internal static void ReadField(Type fieldType, )
     {
-        EventFieldReader instance = GetInstance(createData.info.fieldInfo.FieldType);
+        EventFieldReader instance = GetInstance(fieldType);
         
-        IEventField.CreateData createData = new IEventField.CreateData(createData.info, createData.fieldPtr, createData.data, createData.tokenType);
+        IEventField.CreateData createData = new (
+            createData.info, 
+            createData.fieldPtr, 
+            createData.data, 
+            createData.tokenType
+        );
         instance.Read(createData);
     }
 
