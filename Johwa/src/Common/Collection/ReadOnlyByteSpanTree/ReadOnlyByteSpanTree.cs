@@ -1,13 +1,14 @@
 using System.Text;
-using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections;
 
 namespace Johwa.Common.Collection;
 
-public partial class ReadOnlyByteSpanTree<TValue>
+public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
 {
     #region Object
+
+    #region Public
 
     public struct ValueIterator : IEnumerator<TValue>, IDisposable
     {
@@ -90,6 +91,11 @@ public partial class ReadOnlyByteSpanTree<TValue>
         }
     }
     
+    #endregion
+
+
+    #region Internal
+
     internal class Node
     {
         public int nodeIndex;
@@ -354,6 +360,8 @@ public partial class ReadOnlyByteSpanTree<TValue>
     }
     
     #endregion
+    
+    #endregion
 
 
     #region Static
@@ -467,55 +475,6 @@ public partial class ReadOnlyByteSpanTree<TValue>
 
     #endregion
 
-    #region 다른 타입의 값을 가지는 트리로 구조 복사
-
-    static ReadOnlyByteSpanTree<TNewValue>.Node CreateNewTreeNode<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
-    {
-        return new ReadOnlyByteSpanTree<TNewValue>.Node(
-            originalNode.nodeIndex,
-            originalNode.keySlice,
-            CreateNewTreeNodeValueInfo(originalNode, valueSelector),
-            CreateNewTreeNodeChildNodeArray(originalNode, valueSelector),
-            originalNode.branchDepth
-        );
-    }
-    static ReadOnlyByteSpanTree<TNewValue>.ValueInfo? CreateNewTreeNodeValueInfo<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
-    {
-        if (originalNode.valueInfo == null) 
-        {
-            return null;
-        }
-        else
-        {
-            return new ReadOnlyByteSpanTree<TNewValue>.ValueInfo(
-                valueSelector.Invoke(originalNode.valueInfo.value),
-                originalNode.valueInfo.valueIndex
-            );
-        }
-    }
-    static ReadOnlyByteSpanTree<TNewValue>.Node[]? CreateNewTreeNodeChildNodeArray<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
-    {
-        if (originalNode.childNodeArray == null)
-        {
-            return null;
-        }
-        else
-        {
-            ReadOnlyByteSpanTree<TNewValue>.Node[] newTreeNodeChildNodeArray 
-                = new ReadOnlyByteSpanTree<TNewValue>.Node[originalNode.childNodeArray.Length];
-                
-            for (int i = 0; i < newTreeNodeChildNodeArray.Length; i++)
-            {
-                Node originalNodeChild = originalNode.childNodeArray[i];
-                newTreeNodeChildNodeArray[i] = CreateNewTreeNode(originalNodeChild, valueSelector);
-            }
-
-            return newTreeNodeChildNodeArray;
-        }
-    }
-
-    #endregion
-
     #endregion
 
 
@@ -536,6 +495,19 @@ public partial class ReadOnlyByteSpanTree<TValue>
 
 
     #region Method
+
+    #region 명시적 인터페이스 구현
+
+    IEnumerator IEnumerable.GetEnumerator()
+        => new ValueIterator(this);
+
+    IEnumerator<TValue> IEnumerable<TValue>.GetEnumerator()
+        => new ValueIterator(this);
+
+    #endregion
+
+
+    #region Public
 
     public TValue GetValue(ReadOnlySpan<byte> key)
     {
@@ -596,16 +568,12 @@ public partial class ReadOnlyByteSpanTree<TValue>
 
         return valueArray;
     }
-    public ReadOnlyByteSpanTree<TNewValue> CreateNewTree<TNewValue>(Func<TValue, TNewValue> valueSelector)
-    {
-        return new ReadOnlyByteSpanTree<TNewValue>(
-            CreateNewTreeNode(rootNode, valueSelector), 
-            valueCount, 
-            maxNodeDepth,
-            maxBranchDepth
-        );
-    }
-    
+
+    #endregion
+
+
+    #region Internal
+
     internal NodeIterator GetNodeIterator()
         => new NodeIterator(rootNode, maxBranchDepth);
 
@@ -654,7 +622,9 @@ public partial class ReadOnlyByteSpanTree<TValue>
         node = null;
         return false;
     }
-    
+
+    #endregion
+
     #endregion
 
     #endregion
