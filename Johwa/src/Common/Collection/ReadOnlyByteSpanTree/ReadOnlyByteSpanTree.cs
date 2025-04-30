@@ -1,6 +1,7 @@
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Diagnostics.CodeAnalysis;
+using System.Collections;
 
 namespace Johwa.Common.Collection;
 
@@ -8,7 +9,7 @@ public partial class ReadOnlyByteSpanTree<TValue>
 {
     #region Object
 
-    public struct ValueIterator : IDisposable
+    public struct ValueIterator : IEnumerator<TValue>, IDisposable
     {
         NodeIterator nodeIterator;
 
@@ -22,7 +23,17 @@ public partial class ReadOnlyByteSpanTree<TValue>
 
             return valueNode.valueInfo;
         } }
+        
         public TValue Current { get { 
+            if (valueNode == null)
+                throw new Exception("노드가 없습니다.");
+
+            if (valueNode.valueInfo == null)
+                throw new Exception("노드에 값이 없습니다.");
+
+            return valueNode.valueInfo.value;
+        } }
+        object? IEnumerator.Current { get { 
             if (valueNode == null)
                 throw new Exception("노드가 없습니다.");
 
@@ -71,6 +82,11 @@ public partial class ReadOnlyByteSpanTree<TValue>
         public void Dispose()
         {
             nodeIterator.Dispose();
+        }
+
+        public void Reset()
+        {
+            throw new NotImplementedException();
         }
     }
     
@@ -453,82 +469,51 @@ public partial class ReadOnlyByteSpanTree<TValue>
 
     #region 다른 타입의 값을 가지는 트리로 구조 복사
 
-    static ReadOnlyByteSpanTree<TNewValue>.Node CreateNewNode<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
+    static ReadOnlyByteSpanTree<TNewValue>.Node CreateNewTreeNode<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
     {
-        //값이 없음
-        if (originalNode.valueInfo == null)
+        return new ReadOnlyByteSpanTree<TNewValue>.Node(
+            originalNode.nodeIndex,
+            originalNode.keySlice,
+            CreateNewTreeNodeValueInfo(originalNode, valueSelector),
+            CreateNewTreeNodeChildNodeArray(originalNode, valueSelector),
+            originalNode.branchDepth
+        );
+    }
+    static ReadOnlyByteSpanTree<TNewValue>.ValueInfo? CreateNewTreeNodeValueInfo<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
+    {
+        if (originalNode.valueInfo == null) 
         {
-            if (originalNode.childNodeArray == null)
-            {
-                throw new ArgumentException("잘못된 노드가 존재합니다.");
-            }
-            else
-            {
-                // 브랜치 노드 생성
-                ReadOnlyByteSpanTree<TNewValue>.Node[] newChildNodeArray
-                    = CreateNewChildNodeArray(originalNode.childNodeArray, valueSelector);
-
-                return ReadOnlyByteSpanTree<TNewValue>.CreateBranchNode(
-                    originalNode.nodeIndex,
-                    originalNode.keySlice,
-                    newChildNodeArray,
-                    originalNode.branchDepth
-                );
-            }
+            return null;
         }
-        // 값 있음
         else
         {
-            TNewValue newValue = valueSelector.Invoke(originalNode.valueInfo.value);
-            ReadOnlyByteSpanTree<TNewValue>.ValueInfo newValueInfo 
-                = new ReadOnlyByteSpanTree<TNewValue>.ValueInfo(
-                    newValue, 
-                    originalNode.valueInfo.valueIndex
-                );
-
-            // 자식 없음
-            if (originalNode.childNodeArray == null)
-            {
-                // 값 노드 생성
-                return ReadOnlyByteSpanTree<TNewValue>.CreateValueNode(
-                    originalNode.nodeIndex,
-                    originalNode.keySlice,
-                    newValueInfo,
-                    originalNode.branchDepth
-                );
-            }
-            // 자식 있음
-            else
-            {
-                ReadOnlyByteSpanTree<TNewValue>.Node[] newChildNodeArray
-                    = CreateNewChildNodeArray(originalNode.childNodeArray, valueSelector);
-
-                // 값 브랜치 노드 생성
-                return ReadOnlyByteSpanTree<TNewValue>.CreateValueBranchNode(
-                    originalNode.nodeIndex,
-                    originalNode.keySlice,
-                    newValueInfo, 
-                    newChildNodeArray,
-                    originalNode.branchDepth
-                );
-            }
+            return new ReadOnlyByteSpanTree<TNewValue>.ValueInfo(
+                valueSelector.Invoke(originalNode.valueInfo.value),
+                originalNode.valueInfo.valueIndex
+            );
         }
     }
-    
-    static ReadOnlyByteSpanTree<TNewValue>.Node[] CreateNewChildNodeArray<TNewValue>(Node[] originalChildArray, Func<TValue, TNewValue> valueSelector)
+    static ReadOnlyByteSpanTree<TNewValue>.Node[]? CreateNewTreeNodeChildNodeArray<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
     {
-        // 새 자식 노드 배열 생성
-        ReadOnlyByteSpanTree<TNewValue>.Node[] newChildNodeArray = new ReadOnlyByteSpanTree<TNewValue>.Node[originalChildArray.Length];
-        for (int i = 0; i < newChildNodeArray.Length; i++)
+        if (originalNode.childNodeArray == null)
         {
-            Node originalChildNode = originalChildArray[i];
-            newChildNodeArray[i] = CreateNewNode(originalChildNode, valueSelector);
+            return null;
         }
+        else
+        {
+            ReadOnlyByteSpanTree<TNewValue>.Node[] newTreeNodeChildNodeArray 
+                = new ReadOnlyByteSpanTree<TNewValue>.Node[originalNode.childNodeArray.Length];
+                
+            for (int i = 0; i < newTreeNodeChildNodeArray.Length; i++)
+            {
+                Node originalNodeChild = originalNode.childNodeArray[i];
+                newTreeNodeChildNodeArray[i] = CreateNewTreeNode(originalNodeChild, valueSelector);
+            }
 
-        // 반환
-        return newChildNodeArray;
+            return newTreeNodeChildNodeArray;
+        }
     }
-    
+
     #endregion
 
     #endregion
@@ -620,51 +605,7 @@ public partial class ReadOnlyByteSpanTree<TValue>
             maxBranchDepth
         );
     }
-    static ReadOnlyByteSpanTree<TNewValue>.Node CreateNewTreeNode<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
-    {
-        return new ReadOnlyByteSpanTree<TNewValue>.Node(
-            originalNode.nodeIndex,
-            originalNode.keySlice,
-            CreateNewTreeNodeValueInfo(originalNode, valueSelector),
-            CreateNewTreeNodeChildNodeArray(originalNode, valueSelector),
-            originalNode.branchDepth
-        );
-    }
-    static ReadOnlyByteSpanTree<TNewValue>.ValueInfo? CreateNewTreeNodeValueInfo<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
-    {
-        if (originalNode.valueInfo == null) 
-        {
-            return null;
-        }
-        else
-        {
-            return new ReadOnlyByteSpanTree<TNewValue>.ValueInfo(
-                valueSelector.Invoke(originalNode.valueInfo.value),
-                originalNode.valueInfo.valueIndex
-            );
-        }
-    }
-    static ReadOnlyByteSpanTree<TNewValue>.Node[]? CreateNewTreeNodeChildNodeArray<TNewValue>(Node originalNode, Func<TValue, TNewValue> valueSelector)
-    {
-        if (originalNode.childNodeArray == null)
-        {
-            return null;
-        }
-        else
-        {
-            ReadOnlyByteSpanTree<TNewValue>.Node[] newTreeNodeChildNodeArray 
-                = new ReadOnlyByteSpanTree<TNewValue>.Node[originalNode.childNodeArray.Length];
-                
-            for (int i = 0; i < newTreeNodeChildNodeArray.Length; i++)
-            {
-                Node originalNodeChild = originalNode.childNodeArray[i];
-                newTreeNodeChildNodeArray[i] = CreateNewTreeNode(originalNodeChild, valueSelector);
-            }
-
-            return newTreeNodeChildNodeArray;
-        }
-    }
-
+    
     internal NodeIterator GetNodeIterator()
         => new NodeIterator(rootNode, maxBranchDepth);
 
