@@ -372,7 +372,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
     /// 값만 가진 노드 생성
     /// </summary>
     /// <param name="value"></param>
-    static Node CreateValueNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo, int branchDepth)
+    internal static Node CreateValueNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo, int branchDepth)
     {
         return new Node(
             nodeIndex,
@@ -388,7 +388,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
     /// </summary>
     /// <param name="keySlice"></param>
     /// <param name="childNodeArray"></param>
-    static Node CreateBranchNode(int nodeIndex, byte[] keySlice, Node[] childNodeArray, int branchDepth)
+    internal static Node CreateBranchNode(int nodeIndex, byte[] keySlice, Node[] childNodeArray, int branchDepth)
     {
         return new Node(
             nodeIndex,
@@ -405,7 +405,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
     /// <param name="keyByte"></param>
     /// <param name="childNodeInfo"></param>
     /// <param name="value"></param>
-    static Node CreateValueBranchNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo, Node[] childNodeArray, int branchDepth)
+    internal static Node CreateValueBranchNode(int nodeIndex, byte[] keySlice, ValueInfo valueInfo, Node[] childNodeArray, int branchDepth)
     {
         return new Node(
             nodeIndex,
@@ -420,7 +420,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
 
     #region 루트 노드 생성
 
-    static Node CreateEmptyTreeRootNode()
+    internal static Node CreateEmptyTreeRootNode()
     {
         Node emptyNode
             = ReadOnlyByteSpanTree<TValue>.CreateBranchNode(
@@ -433,7 +433,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
         return emptyNode;
     }
 
-    static Node CreateValueTreeRootNode(byte[] keySlice, TValue value)
+    internal static Node CreateValueTreeRootNode(byte[] keySlice, TValue value)
     {
         Node valueNode 
             = ReadOnlyByteSpanTree<TValue>.CreateValueNode(
@@ -446,7 +446,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
         return valueNode;
     }
 
-    static Node CreateBranchTreeRootNode(byte[] keySlice, Node[] childNodeArray)
+    internal static Node CreateBranchTreeRootNode(byte[] keySlice, Node[] childNodeArray)
     {
         Node branchNode
             = ReadOnlyByteSpanTree<TValue>.CreateBranchNode(
@@ -459,7 +459,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
         return branchNode;
     }
 
-    static Node CreateValueBranchTreeRootNode(byte[] keySlice, TValue value, Node[] childNodeArray)
+    internal static Node CreateValueBranchTreeRootNode(byte[] keySlice, TValue value, Node[] childNodeArray)
     {
         Node valueBranchNode =
             ReadOnlyByteSpanTree<TValue>.CreateValueBranchNode(
@@ -485,7 +485,7 @@ public partial class ReadOnlyByteSpanTree<TValue> : IEnumerable<TValue>
     public readonly int maxNodeDepth;
     public readonly int maxBranchDepth;
 
-    ReadOnlyByteSpanTree(Node rootNode, int valueCount, int maxNodeDepth, int maxBranchDepth)
+    internal ReadOnlyByteSpanTree(Node rootNode, int valueCount, int maxNodeDepth, int maxBranchDepth)
     {
         this.rootNode = rootNode;
         this.valueCount = valueCount;
