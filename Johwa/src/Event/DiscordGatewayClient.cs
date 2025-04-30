@@ -1,7 +1,12 @@
 using System.Buffers;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using Johwa.Common.Collection;
+using Johwa.Common.Debug;
+using Johwa.Common.Extension.System;
+using Johwa.Common.Utility.System;
 
 namespace Johwa.Event;
 
@@ -13,7 +18,40 @@ public class DiscordGatewayClient
     static readonly Uri gatewayUri = new Uri(GatewayUrl);
 
     // 디스패치 이벤트
-    public readonly DispatchEventGroupDictionary dispatchEventDictionary = new();
+    public static readonly ReadOnlyByteSpanTree<DispatchEventGroup> dispatchEventTree = CreateDispatchEventTree();
+
+    public static ReadOnlyByteSpanTree<DispatchEventGroup> CreateDispatchEventTree()
+    {
+        ReadOnlyByteSpanTree<DispatchEventGroup>.Builder treeBuilder = new ();
+
+        foreach (Type type in TypeUtility.GetAllTypes())
+        {
+            if (type.IsAbstract) 
+                continue;
+
+            if (type.IsClass == false) 
+                continue;
+
+            if (type.IsSubclassOf(typeof(DispatchEvent)))
+            {
+                DispatchEventAttribute? attribute = type.GetCustomAttribute<DispatchEventAttribute>();
+                if (attribute == null) {
+                    JohwaLogger.Log($"{type.Name}에 DispatchEventAttribute가 없습니다.",
+                        severity: LogSeverity.Warning);
+                    continue;
+                }
+                DispatchEventGroup eventGroup = new DispatchEventGroup(type);
+
+                // 이벤트 그룹을 트리에 추가
+                treeBuilder.Add(attribute.eventName.AsByteSpan(), eventGroup);
+            }
+            
+        }
+        
+        
+
+        return treeBuilder.BuildAndDispose();
+    }
 
     #endregion
 
@@ -120,7 +158,7 @@ public class DiscordGatewayClient
         {
             int byteCount = Encoding.UTF8.GetBytes(json, 0, json.Length, buffer, 0);
 
-            await webSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
+            await SendAsync(new ArraySegment<byte>(buffer, 0, byteCount));
         }
         finally
         {
@@ -151,12 +189,7 @@ public class DiscordGatewayClient
         {
             byteCount = Encoding.UTF8.GetBytes(jsonString, 0, jsonString.Length, buffer, 0);
 
-            await webSocket.SendAsync(
-                new ArraySegment<byte>(buffer, 0, byteCount), 
-                WebSocketMessageType.Text, 
-                true, 
-                CancellationToken.None
-            );
+            await SendAsync(new ArraySegment<byte>(buffer, 0, byteCount));
         }
         finally
         {
@@ -167,7 +200,16 @@ public class DiscordGatewayClient
         //string prettyJsonString = JsonUtility.ToPrettyJsonString(jsonString);
         //Console.WriteLine($"[ 로그 ] 송신 ({byteCount}bytes): \n{prettyJsonString}");
     }
-
+    async Task SendAsync(ArraySegment<byte> bytes)
+    {
+        await webSocket.SendAsync(
+            bytes, 
+            WebSocketMessageType.Text, 
+            true, 
+            CancellationToken.None
+        );
+    }
+    
     void StartReceiveLoop()
     {
         if (receiveLoopTask != null) {
@@ -181,25 +223,31 @@ public class DiscordGatewayClient
         receiveLoopCts = new CancellationTokenSource();
 
         // 수신 루프 시작
-        receiveLoopTask = Task.Run(async () => {
-            // 버퍼 대여
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(8192);
-            try
+        receiveLoopTask = Task.Run(ReceivLoop);
+    }
+    async Task ReceivLoop()
+    {
+        // 버퍼 대여
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(8192);
+        try
+        {
+            while (webSocket.State == WebSocketState.Open && webSocketCts != null && !webSocketCts.Token.IsCancellationRequested)
             {
-                while (webSocket.State == WebSocketState.Open && webSocketCts != null && !webSocketCts.Token.IsCancellationRequested)
-                {
-                    await ReceiveEvent(buffer, receiveLoopCts.Token);
+                if (receiveLoopCts == null) {
+                    Console.WriteLine("[ 오류 ] 수신 루프 취소 토큰이 없습니다.");
+                    return;
                 }
+                await ReceiveEvent(buffer, receiveLoopCts.Token);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ 오류 ] 이벤트 수신 오류: \n{ex.Message}");
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-        });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ 오류 ] 이벤트 수신 오류: \n{ex.Message}");
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
     async Task CancelReceiveLoop()
     {
@@ -244,7 +292,9 @@ public class DiscordGatewayClient
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ 오류 ] 수신 오류: \n{ex.Message}");
+            Type exType = ex.GetType();
+
+            Console.WriteLine($"[ 오류 ({exType.Name}) ] 수신 오류: \n{ex.Message}");
             return;
         }
 
@@ -420,16 +470,16 @@ public class DiscordGatewayClient
                 _lastSequence = sequence;
 
                 // 등록되지 않은 이벤트는 건너뛰기
-                if (dispatchEventDictionary.TryGetValue(type, out DispatchEventGroup? eventGroup) == false) {
-                    break;
+                if (dispatchEventDictionary.TryGetValue(type, out DispatchEventGroup? eventGroup)) 
+                {
+                    eventGroup.OnHandled(this, data);
                 }
 
-                eventGroup.OnHandled(this, data);
-
-                break; 
+                break;
             }
             // 7
-            case GatewayOpcode.Reconnect: {
+            case GatewayOpcode.Reconnect: 
+            {
                 Task.Run(Reconnect);
                 break;
             }

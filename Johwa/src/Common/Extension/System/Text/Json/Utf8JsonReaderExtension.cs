@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 
 namespace Johwa.Common.Extension.System.Text.Json;
@@ -30,75 +31,61 @@ public static class Utf8JsonReaderExtension
         // 끝까지 읽었지만 찾지 못함
         return false; 
     }
-    public static bool TryReadObject(this ref Utf8JsonReader reader, ReadOnlySpan<byte> originalJson, out ReadOnlySpan<byte> result)
+    public static bool ReadValueByte(this ref Utf8JsonReader reader, ReadOnlySpan<byte> originalJson, out ReadOnlySpan<byte> result)
     {
-        if (reader.TokenType != JsonTokenType.StartObject){
-            result = default;
-            return false;
-        }
+        // 현재 토큰의 시작 인덱스를 저장합니다.
+        int startIndex = (int)reader.TokenStartIndex;
 
-        // 객체 시작 위치 기록
-        int start = (int)reader.TokenStartIndex; 
-
-        int depth = reader.CurrentDepth;
-
-        // 객체가 끝날 때까지 반복하여 읽기
-        while (reader.Read())
-        {
-            if (reader.TokenType == JsonTokenType.EndObject && reader.CurrentDepth == depth - 1)
-            {
-                // 객체의 끝 위치
-                int end = (int)reader.BytesConsumed; 
-
-                // 원본 JSON에서 객체에 해당하는 부분을 추출
-                result = originalJson.Slice(start, end - start);
-                return true;
-            }
-        }
-        result = default;
-        return false;
-    }
-    
-    /// <summary>
-    /// # StartObject, StartArray <br/>
-    /// - EndObject, EndArray로 이동함. <br/>
-    /// <br/>
-    /// # 나머지 타입 <br/>
-    /// - 움직이지 않음
-    /// </summary>
-    /// <param name="reader"></param>
-    /// <param name="originalJson"></param>
-    /// <returns></returns>
-    public static ReadOnlyMemory<byte> ReadAndSliceValue(this ref Utf8JsonReader reader, ReadOnlyMemory<byte> originalJson)
-    {
-        // 값 시작 위치 기록
-        int start = (int)reader.TokenStartIndex;
-
-        // 다음 값으로 이동
         switch (reader.TokenType)
         {
+            // 단일 값 타입
+            case JsonTokenType.PropertyName: 
+            case JsonTokenType.String: 
+            case JsonTokenType.Number: 
+            case JsonTokenType.True: 
+            case JsonTokenType.False: 
+            case JsonTokenType.Null: 
+            case JsonTokenType.Comment: 
+            {
+                // 다음 값으로 이동
+                if(reader.Read()) 
+                {
+                    break;
+                }
+                else
+                {
+                    result = default;
+                    return false;
+                }
+            }
+
             // 다중 값 타입
             case JsonTokenType.StartObject:
-            case JsonTokenType.StartArray: 
+            case JsonTokenType.StartArray:
             {
-                // 객체 Skip 
-                reader.Skip(); 
+                reader.Skip(); // 객체 Skip
 
-                // 값 끝 위치 기록
-                int end = (int)reader.BytesConsumed;
-
-                // 원본 자르기
-                return originalJson.Slice(start, end - start);
+                // 다음 값으로 이동
+                if(reader.Read()) 
+                {
+                    break;
+                }
+                else
+                {
+                    result = default;
+                    return false;
+                }
             }
 
-            // 단일 값 타입
-            default: 
-            {
-                // 원본 자르기
-                return originalJson.Slice(start, reader.ValueSpan.Length);
-            }
+            default:
+                throw new InvalidEnumArgumentException($"지원하지 않는 토큰 타입입니다: {reader.TokenType}");
         }
 
-        
+        // 현재까지 소비된 바이트 수를 저장합니다. 
+        int endIndex = (int)reader.BytesConsumed;
+
+        // 원본 JSON 바이트 메모리에서 해당 범위를 슬라이스하여 반환합니다. 
+        result = originalJson.Slice(startIndex, endIndex - startIndex);
+        return true;
     }
 }

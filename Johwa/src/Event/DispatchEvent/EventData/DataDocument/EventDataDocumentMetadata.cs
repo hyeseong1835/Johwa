@@ -1,6 +1,5 @@
 using System.Reflection;
 using Johwa.Common.Collection;
-using Johwa.Common.Extension.System;
 
 namespace Johwa.Event.Data;
 
@@ -9,6 +8,7 @@ public class EventDataDocumentMetadata
     #region Static
 
     static Dictionary<Type, EventDataDocumentMetadata> instanceDictionary = new ();
+    
     public static EventDataDocumentMetadata GetOrCreateInstance(Type documentType)
     {
         if (instanceDictionary.TryGetValue(documentType, out EventDataDocumentMetadata? instance))
@@ -22,7 +22,6 @@ public class EventDataDocumentMetadata
             return newInstance;
         }
     }
-
     static ReadOnlyByteSpanTree<EventDataInfo> CreateDataInfoTree(Type documentType)
     {
         ReadOnlyByteSpanTree<EventDataInfo>.Builder treeBuilder = new ();

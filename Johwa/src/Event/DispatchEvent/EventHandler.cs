@@ -132,5 +132,6 @@ public class EventHandler<TData> : IDisposable
             context.enabledHandlerCount--;
         }
     }
+    
     #endregion
 }

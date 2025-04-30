@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Johwa.Common.Extension.System.Text.Json;
 
 namespace Johwa.Event.Data;
 
@@ -32,17 +31,57 @@ unsafe public interface IEventDataDocument
             // 데이터 이름
             ReadOnlySpan<byte> jsonDataNameSpan = jsonReader.ValueSpan;
 
+            // 값으로 이동
+            if (jsonReader.Read()) 
+                throw new JsonException($"프로퍼티의 값이 존재하지 않습니다. {jsonDataNameSpan.ToString()}");
+
+            JsonTokenType valueTokenType = jsonReader.TokenType;
+
+            switch (valueTokenType)
+            {
+                // 객체 Skip
+                case JsonTokenType.StartObject:
+                case JsonTokenType.StartArray:
+                    jsonReader.Skip();
+                    break;
+                
+                // 나머지 타입은 무시
+                default:
+                    break;
+            }
+            
+
             if (metadata.dataInfoTree.TryGetValue(jsonDataNameSpan, out EventDataInfo? dataInfo))
             {
                 // jsonData에서 값 부분만 슬라이스
+                JsonTokenType jsonTokenType = jsonReader.TokenType;
                 ReadOnlyMemory<byte> dataJsonData = jsonReader.ReadAndSliceValue(jsonData);
+
+                EventDataValue dataValue = new (
+                    dataJsonData, 
+                    jsonReader.TokenType
+                );
 
                 // 값 읽기
                 dataInfo.ReadData(
                     documentPtr, 
-                    dataJsonData, 
-                    jsonReader.TokenType
+                    dataValue
                 );
+            }
+            else
+            {
+                switch (jsonReader.TokenType)
+                {
+                    // 객체 Skip
+                    case JsonTokenType.StartObject:
+                    case JsonTokenType.StartArray:
+                        jsonReader.Skip();
+                        break;
+                    
+                    // 나머지 타입은 무시
+                    default:
+                        break;
+                }
             }
         }
         return ref *documentPtr;
