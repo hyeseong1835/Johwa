@@ -1,7 +1,4 @@
-using Johwa.Common.Debug;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Johwa.Common.Collection;
 
@@ -36,13 +33,13 @@ public interface IEventField
     public static void ReadDocumentField(FieldInfo fieldInfo, ref ReadOnlyByteSpanTree<EventDataInfo>.Builder treeBuilder)
     {
         // Field
-        Type fieldType = fieldInfo.FieldType;
-
         EventFieldAttribute? fieldAttribute = fieldInfo.GetCustomAttribute<EventFieldAttribute>();
         if (fieldAttribute == null) 
             return;
 
-        
+        Type fieldType = fieldInfo.FieldType;
+
+        EventFieldReader.ReadField(createData);
 
         ReadOnlySpan<byte> fieldNameByteSpan = eventFieldInfo.name.AsByteSpan();
 

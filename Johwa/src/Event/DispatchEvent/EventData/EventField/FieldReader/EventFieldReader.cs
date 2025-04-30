@@ -250,9 +250,11 @@ public abstract class EventFieldReader
             }
         }
     }
-    internal static void ReadField(IEventField.CreateData createData)
+    internal static void ReadField(Type IEventField.CreateData createData)
     {
-        EventFieldReader instance = GetOrCreateInstance(createData.info.fieldInfo.FieldType);
+        EventFieldReader instance = GetInstance(createData.info.fieldInfo.FieldType);
+        
+        IEventField.CreateData createData = new IEventField.CreateData(createData.info, createData.fieldPtr, createData.data, createData.tokenType);
         instance.Read(createData);
     }
 
@@ -262,7 +264,7 @@ public abstract class EventFieldReader
     /// <param name="fieldType"></param>
     /// <returns></returns>
     /// <exception cref="JohwaException">EventFieldReader ({type})를 생성할 수 없습니다.</exception>
-    static EventFieldReader GetOrCreateInstance(Type fieldType)
+    static EventFieldReader GetInstance(Type fieldType)
     {
         if (instanceDictionary.TryGetValue(fieldType, out EventFieldReader? instance))
         {
