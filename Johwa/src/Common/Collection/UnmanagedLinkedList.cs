@@ -14,7 +14,7 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
 {
     #region Object
 
-    struct Node
+    internal struct Node
     {
         #region Static
 
@@ -56,6 +56,7 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
         Node* currentNodePtr;
         public T Current => currentNodePtr->value;
         public ref T CurrentRef => ref currentNodePtr->value;
+        public T* CurrentPtr => &(currentNodePtr->value);
         object IEnumerator.Current => Current;
 
         bool isEnd;
@@ -113,16 +114,80 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
     
     public ref struct RefEnumerator
     {
+        #region Object
+
+        public ref struct EnumerationInfo
+        {
+            ref UnmanagedLinkedList<T> listRef;
+
+            Node* nodePtr;
+            public bool IsNull => nodePtr == null;
+            public ref T ValueRef => ref (nodePtr->value);
+            public T Value => (nodePtr->value);
+            public T* ValuePtr => &(nodePtr->value);
+
+            public EnumerationInfo(RefEnumerator enumerator)
+            {
+                this.listRef = ref enumerator.listRef;
+                this.nodePtr = enumerator.info.nodePtr;
+            }
+            internal EnumerationInfo(ref UnmanagedLinkedList<T> listRef, Node* nodePtr)
+            {
+                this.listRef = ref listRef;
+                this.nodePtr = nodePtr;
+            }
+
+            public bool MoveNext()
+            {
+                if (nodePtr == null)
+                    return false;
+
+                nodePtr = nodePtr->nextNodePtr;
+                return nodePtr != null;
+            }
+            public void InsertNext(T value)
+            {
+                if (nodePtr == null)
+                    throw new InvalidOperationException();
+
+                // 새 노드 생성 (new -> next)
+                Node* newNodePtr = Node.Create(value, nodePtr->nextNodePtr);
+
+                // (cur -> new)
+                nodePtr->nextNodePtr = newNodePtr;
+
+                // 개수 업데이트
+                listRef.count++;
+            }
+            public ref T InsertNextAndReturnRef(T value)
+            {
+                InsertNext(value);
+
+                return ref nodePtr->nextNodePtr->value;
+            }
+            public T* InsertNextAndReturnPtr(T value)
+            {
+                InsertNext(value);
+
+                return &(nodePtr->nextNodePtr->value);
+            }
+        }
+
+        #endregion
+
+
         #region Field & Property
 
         ref UnmanagedLinkedList<T> listRef;
 
-        Node* currentNodePtr;
-        public T Current => currentNodePtr->value;
-        public ref T CurrentRef => ref currentNodePtr->value;
-        public T* CurrentPtr => &(currentNodePtr->value);
+        EnumerationInfo info;
+        public EnumerationInfo Info => info;
+        public T CurrentValue => info.Value;
+        public ref T CurrentValueRef => ref info.ValueRef;
+        public T* CurrentValuePtr => info.ValuePtr;
 
         bool isEnd;
+        public bool IsEnd => isEnd;
 
         #endregion
 
@@ -132,13 +197,13 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
         public RefEnumerator(ref UnmanagedLinkedList<T> list)
         {
             this.listRef = ref list;
-            this.currentNodePtr = null;
+            this.info = new EnumerationInfo(null);
             this.isEnd = false;
         }
         public RefEnumerator(RefEnumerator enumerator)
         {
             this.listRef = ref enumerator.listRef;
-            this.currentNodePtr = enumerator.currentNodePtr;
+            this.info = enumerator.info;
             this.isEnd = enumerator.isEnd;
         }
 
@@ -149,35 +214,35 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
 
         public bool MoveNext()
         {
-            if (currentNodePtr == null)
+            if (isEnd)
                 return false;
 
-            currentNodePtr = currentNodePtr->nextNodePtr;
-            return currentNodePtr != null;
+            if (info.IsNull) {
+                info = new EnumerationInfo(listRef.headNodePtr);
+                return true;
+            }
+
+            isEnd = info.MoveNext();
+            return isEnd;
         }
+            
         public void InsertNext(T value)
         {
-            // 새 노드 생성 (new -> next)
-            Node* newNodePtr = Node.Create(value, currentNodePtr->nextNodePtr);
+            if (info.IsNull)
+            {
+                listRef.AddFirst(value);
+            }
 
-            // (cur -> new)
-            currentNodePtr->nextNodePtr = newNodePtr;
+            info.InsertNext(value);
         }
-        public void InsertPrev(T value)
-        {
-            // 새 노드 생성 (prev -> new)
-            Node* newNodePtr = Node.Create(value, currentNodePtr);
 
-            // (new -> cur)
-            currentNodePtr = newNodePtr;
-        }
         public RefEnumerator Copy()
             => new RefEnumerator(this);
 
         public void Reset()
         {
-            currentNodePtr = null;
-            isEnd = false;
+            info = new EnumerationInfo(listRef.headNodePtr);
+            isEnd = listRef.headNodePtr != null;
         }
 
         #endregion
@@ -229,7 +294,7 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
 
     #endregion
 
-    public ref T AddFirst(T value)
+    public void AddFirst(T value)
     {
         headNodePtr = Node.Create(value, headNodePtr);
 
@@ -239,10 +304,21 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
         }
         
         count++;
+    }
+    public ref T AddFirstAndReturnRef(T value)
+    {
+        AddFirst(value);
 
         return ref headNodePtr->value;
     }
-    public ref T AddLast(T value)
+    public T* AddFirstAndReturnPtr(T value)
+    {
+        AddFirst(value);
+
+        return &(headNodePtr->value);
+    }
+    
+    public void AddLast(T value)
     {
         Node* newNodePtr = Node.Create(value, null);
 
@@ -258,8 +334,18 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
         }
 
         count++;
+    }
+    public ref T AddLastAndReturnRef(T value)
+    {
+        AddLast(value);
 
         return ref tailNodePtr->value;
+    }
+    public T* AddLastAndReturnPtr(T value)
+    {
+        AddLast(value);
+
+        return &(tailNodePtr->value);
     }
     
     public void RemoveFirst()
@@ -276,24 +362,22 @@ unsafe public struct UnmanagedLinkedList<T> : IEnumerable<T>
     
     public Enumerator GetEnumerator()
         => new Enumerator(this);
-
+    
     public void Dispose()
     {
-        Node* currentNodePtr = headNodePtr;
-        Node* nextNodePtr;
+        Enumerator childListEnumerator 
+            = GetEnumerator();
 
-        for (int i = 0; i < count; i++)
+        while (childListEnumerator.MoveNext())
         {
-            // 임시로 다음 노드 포인터를 저장
-            nextNodePtr = currentNodePtr->nextNodePtr;
+            // 찾은 노드의 바이트 노드 Dispose
+            T* ptr = childListEnumerator.CurrentPtr;
 
-            // 현재 노드 포인터를 해제
-            Marshal.FreeHGlobal((IntPtr)currentNodePtr);
-            
-            // 현재 노드 포인터를 다음 노드 포인터로 이동
-            currentNodePtr = nextNodePtr;
+            if (ptr != null)
+            {
+                Marshal.FreeHGlobal((IntPtr)ptr);
+            }
         }
-        headNodePtr = null;
     }
     
     #endregion

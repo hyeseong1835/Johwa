@@ -7,7 +7,7 @@ namespace Johwa.Common.Collection;
 /// <summary>
 /// 내부는 참조 변수로 이루어져 있기 때문에 복사하여도 정보를 공유함
 /// </summary>
-public partial struct TempByteSpanTree<TValue>
+public partial struct UnmanagedByteSpanTree<TValue>
     where TValue : unmanaged
 {
     #region Object
@@ -396,14 +396,14 @@ public partial struct TempByteSpanTree<TValue>
     public ReadOnlyByteSpanTree<TValue> BuildToReadOnlyByteSpanTree()
     {
         // 바이트 노드가 없음 -> 빈 트리 반환
-        if (byteNodeList.IsEmpty)
+        if (rootByteNodeList.IsEmpty)
         {
             return CreateEmptyTree();
         }
         // 바이트 노드가 있음
         else
         {
-            ref ByteNode startNode = ref byteNodeList.HeadByteNode;
+            ref ByteNode startNode = ref rootByteNodeList.HeadByteNode;
 
             byte[] keySlice;
             ref ByteNode nextByteNode = ref GetNextValueOrBranchNode(ref startNode, out keySlice);

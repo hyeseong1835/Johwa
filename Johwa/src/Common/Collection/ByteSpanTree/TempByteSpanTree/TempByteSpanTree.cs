@@ -7,327 +7,13 @@ namespace Johwa.Common.Collection;
 /// <summary>
 /// 내부는 참조 변수로 이루어져 있기 때문에 복사하여도 정보를 공유함
 /// </summary>
-public partial struct TempByteSpanTree<TValue>
+public partial struct UnmanagedByteSpanTree<TValue>
     where TValue : unmanaged
 {
     #region Object
     
     unsafe internal struct ByteNode : IDisposable
     {
-        #region Object
-
-        /// <summary>
-        /// ByteNode를 저장하는 단방향 링크드 리스트 (비관리형)
-        /// </summary>
-        unsafe public struct List : IEnumerable<ByteNode>, IDisposable
-        {
-            #region Object
-
-            /// <summary>
-            /// 리스트를 순회하는 반복자  <br/>
-            /// <br/>
-            /// 절대 List가 해제된 이후 사용하지 마세요
-            /// </summary>
-            unsafe public struct Enumerator : IEnumerator<ByteNode>
-            {
-                #region Field & Property
-
-                #region 명시적 인터페이스 구현
-
-                ByteNode IEnumerator<ByteNode>.Current { get {
-                    if (currentListNodePtr == null) 
-                        throw new Exception("현재 노드가 없습니다.");
-                    
-                    return currentListNodePtr->byteNode;
-                } }
-                object IEnumerator.Current => throw new NotImplementedException();
-
-                #endregion
-
-                List byteNodeList;
-                ListNode* currentListNodePtr;
-                bool isEnd;
-
-                public ref ByteNode CurrentRef { get {
-                    if (currentListNodePtr == null) 
-                        throw new Exception("현재 노드가 없습니다.");
-                    
-                    return ref currentListNodePtr->byteNode;
-                } }
-
-                #endregion
-
-                // 생성자
-                public Enumerator(List byteNodeList)
-                {
-                    this.byteNodeList = byteNodeList;
-                    this.currentListNodePtr = null;
-                    this.isEnd = (byteNodeList.headNodePtr == null);
-                }
-
-
-                #region Method
-
-                #region 명시적 인터페이스 구현
-
-                void IEnumerator.Reset() => throw new NotImplementedException();
-                void IDisposable.Dispose() => throw new NotImplementedException();
-
-                #endregion
-
-                public bool MoveNext()
-                {
-                    if (isEnd) return false;
-
-                    if (currentListNodePtr == null) {
-                        currentListNodePtr = byteNodeList.headNodePtr;
-                        return true;
-                    }
-                    currentListNodePtr = currentListNodePtr->nextNodePtr;
-
-                    return currentListNodePtr != null;
-                }
-
-                #endregion
-            }
-            
-            #endregion
-
-
-            #region Instance
-
-            #region Field & Property
-
-            public UnmanagedLinkedList<ByteNode> list;
-            public int Count => list.Count;
-            public bool IsEmpty => list.IsEmpty;
-
-            #endregion
-
-
-            // Constructor
-            public List()
-            {
-                this.list = new UnmanagedLinkedList<ByteNode>();
-            }
-
-
-            #region Method
-
-            #region 명시적 인터페이스 구현
-
-            IEnumerator<ByteNode> IEnumerable<ByteNode>.GetEnumerator()
-                => new Enumerator(this);
-
-            IEnumerator IEnumerable.GetEnumerator()
-                => new Enumerator(this);
-
-            #endregion
-
-
-            /// <summary>
-            /// 노드를 앞부터 탐색해 값이 존재한다면 바이트 노드의 포인터를 반환하고 <br/>
-            /// 없다면 리스트 노드와 바이트 노드를 생성하고 반환합니다.
-            /// </summary>
-            /// <param name="keyByte"></param>
-            /// <returns>"keyByte"를 가지는 바이트 노드 (notnull)</returns>
-            public ref ByteNode GetOrCreateByteNodeRef(byte keyByte)
-            {
-                ListNode* closestNodePtr = FindClosestNodePtr(keyByte);
-
-                // 찾는 바이트보다 작거나 같은 바이트를 가지는 노드가 없음 => 리스트의 헤드에 노드 생성 후 반환
-                if (closestNodePtr == null)
-                {
-                    // 리스트의 헤드에 노드 생성
-                    headNodePtr = ListNode.Create(keyByte, null, headNodePtr);
-                    count++;
-
-                    return ref headNodePtr->byteNode;
-                }
-                
-                // 찾은 노드 바이트가 찾는 바이트와 같음 => 찾은 노드 반환
-                if (closestNodePtr->byteNode.keyByte == keyByte)
-                {
-                    return ref closestNodePtr->byteNode;
-                }
-                // 찾은 노드 바이트가 찾는 바이트보다 작음 => 찾은 노드 다음에 노드 생성
-                else
-                {
-                    // 찾은 노드 다음에 노드 생성
-                    closestNodePtr->nextNodePtr = ListNode.Create(keyByte, closestNodePtr, closestNodePtr->nextNodePtr);
-                    count++;
-
-                    return ref headNodePtr->byteNode;
-                }
-            }
-            
-            /// <summary>
-            /// "keyByte"를 가지는 바이트 노드의 포인터를 반환함
-            /// </summary>
-            /// <param name="keyByte"></param>
-            /// <returns></returns>
-            public ref ByteNode GetByteNodeRef(byte keyByte)
-            {
-                ListNode* listNodePtr = FindListNodePtr(keyByte);
-                if (listNodePtr == null)
-                    throw new KeyNotFoundException($"'{keyByte}'를 가지는 바이트 노드가 없습니다.");
-
-                return ref listNodePtr->byteNode;
-            }
-            
-            /// <summary>
-            /// "keyByte"를 가지는 바이트 노드의 리스트 노드를 반환함  <br/>
-            /// </summary>
-            /// <param name="keyByte"></param>
-            /// <returns></returns>
-            ListNode* FindListNodePtr(byte keyByte)
-            {
-                ListNode* closestNodePtr = FindClosestNodePtr(keyByte);
-
-                // 찾는 바이트보다 작은 바이트를 가지는 노드가 없음 -> 헤드 노드(nullable) 반환
-                if (closestNodePtr == null)
-                    return headNodePtr;
-                
-                // 찾은 노드 바이트가 찾는 바이트와 같음 -> 찾은 노드 반환
-                if (closestNodePtr->byteNode.keyByte == keyByte)
-                {
-                    return closestNodePtr;
-                }
-                // 노드 바이트가 찾는 바이트보다 작음 -> null 반환
-                else
-                {
-                    return null;
-                }
-            }
-            
-            /// <summary>
-            /// "keyByte" 보다 작거나 같은 바이트 노드중 가장 큰 노드의 리스트 노드 을 반환함
-            /// </summary>
-            /// <param name="keyByte">찾을 바이트</param>
-            /// <returns>null: 헤드 노드가 없거나 헤드 노드 바이트 노드의 바이트가 "keyByte" 보다 큼</returns>
-            ListNode* FindClosestNodePtr(byte keyByte)
-            {
-                // 헤드 노드가 없음 -> null 반환
-                if (headNodePtr == null)
-                    return null;
-
-                // 헤드 노드 바이트가 찾는 바이트보다 큼 -> null 반환
-                if (headNodePtr->byteNode.keyByte > keyByte)
-                    return null;
-
-
-                ListNode* findNodePtr = headNodePtr;
-                ListNode* prevNodePtr = null;
-
-                while (findNodePtr != null)
-                {
-                    byte findKeyByte = findNodePtr->byteNode.keyByte;
-
-                    // 찾는 바이트와 일치함 -> 현재 노드 반환
-                    if (findKeyByte == keyByte)
-                    {
-                        return findNodePtr;
-                    }
-                    
-                    // 찾는 바이트보다 작음 -> 다음 노드로 이동
-                    if (findKeyByte < keyByte)
-                    {
-                        prevNodePtr = findNodePtr;
-                        findNodePtr = findNodePtr->nextNodePtr;
-                        continue;
-                    }
-                    // 찾는 바이트를 초과함 -> 이전 노드 반환
-                    else
-                    {
-                        return prevNodePtr;
-                    }
-                }
-
-                // 찾는 바이트보다 작은 노드가 존재하지 않음 -> 마지막 노드 반환
-                return prevNodePtr;
-            }
-            
-            public Enumerator GetEnumerator()
-                => new Enumerator(this);
-            
-            public void Dispose()
-            {
-                ListNode* findNodePtr = headNodePtr;
-                ListNode* nextNodePtr = null;
-
-                while (findNodePtr != null)
-                {
-                    // 찾은 노드의 바이트 노드 Dispose
-                    findNodePtr->Dispose();
-
-                    // 다음 노드 포인터 임시 저장
-                    nextNodePtr = findNodePtr->nextNodePtr;
-                    
-                    // 찾은 노드 메모리 해제
-                    Marshal.FreeHGlobal((IntPtr)findNodePtr);
-
-                    // 다음 노드로 이동
-                    findNodePtr = nextNodePtr;
-                }
-            }
-
-            #endregion
-
-            #endregion
-        }
-
-        /// <summary>
-        /// ByteNode를 저장하는 단방향 링크드 리스트의 노드
-        /// </summary>
-        internal unsafe struct ListNode : IDisposable
-        {
-            #region Static
-
-            public static ListNode* Create(byte keyByte, ListNode* prevListNodePtr, ListNode* nextListNodePtr)
-            {
-                // 리스트 노드 생성
-                ListNode* newListNodePtr = (ListNode*)Marshal.AllocHGlobal(sizeof(ListNode));
-
-                // prev -> new
-                if (prevListNodePtr != null)
-                {
-                    prevListNodePtr->nextNodePtr = newListNodePtr;
-                }
-
-                *newListNodePtr = new ListNode(
-                    new ByteNode(keyByte),
-                    nextListNodePtr
-                );
-
-                // new -> find
-                return newListNodePtr;
-            }
-
-            #endregion
-
-
-            #region Instance
-
-            public ByteNode byteNode;
-            public ListNode* nextNodePtr;
-
-            ListNode(ByteNode byteNode, ListNode* next)
-            {
-                this.byteNode = byteNode;
-                this.nextNodePtr = next;
-            }
-
-            public void Dispose()
-            {
-                byteNode.Dispose();
-            }
-
-            #endregion
-        }
-
-        #endregion
-
-
         #region Static
 
         public static ByteNode* Create(byte keyByte)
@@ -414,187 +100,68 @@ public partial struct TempByteSpanTree<TValue>
             hasValue = true;
         }
 
-        public void AddChild(ByteNode childNode)
+        public ref ByteNode GetOrCreateChildRef(byte keyByte)
         {
             UnmanagedLinkedList<ByteNode>.RefEnumerator childListRefEnumerator 
                 = new (ref childList);
 
+            scoped UnmanagedLinkedList<ByteNode>.RefEnumerator.EnumerationInfo curInfo;
+            scoped UnmanagedLinkedList<ByteNode>.RefEnumerator.EnumerationInfo prevInfo = new (childListRefEnumerator);
+            
             while (childListRefEnumerator.MoveNext())
             {
-                if (childListRefEnumerator.CurrentPtr->keyByte > childNode.keyByte)
+                curInfo = childListRefEnumerator.Info;
+
+                // 아직 찾지 못함 : keyByte < cur
+                if (childListRefEnumerator.CurrentValuePtr->keyByte > keyByte)
+                {
+                    prevInfo = curInfo;
+                    continue;
+                }
+
+                // 찾음 : keyByte == cur
+                if (childListRefEnumerator.CurrentValuePtr->keyByte == keyByte)
                 {
                     // 이미 자식 노드가 존재함 -> 추가하지 않음
-                    return;
+                    return ref (*curInfo.ValuePtr);
+                }
+
+                // keyByte보다 작거나 같은 자식이 존재하지 않음
+                if (prevInfo.IsNull)
+                {
+                    // 가장 앞에 삽입
+                    childList.AddFirst(new ByteNode(keyByte));
+                    return ref (*childList.HeadValuePtr);
+                }
+                // 현재 노드가 keyByte보다 큼
+                else
+                {
+                    // 이전 노드 다음에 삽입
+                    ByteNode newByteNode = new ByteNode(keyByte);
+
+                    // 삽입 및 참조 반환
+                    return ref (*prevInfo.InsertNextAndReturnPtr(newByteNode));
                 }
             }
-        }
 
+            // keyByte보다 크거나 같은 자식이 존재하지 않음 => 마지막에 삽입
+            return ref childList.AddLastAndReturnRef(new ByteNode(keyByte));
+        }
         public void Dispose()
         {
             childList.Dispose();
         }
-
-
-
-            /// <summary>
-            /// 노드를 앞부터 탐색해 값이 존재한다면 바이트 노드의 포인터를 반환하고 <br/>
-            /// 없다면 리스트 노드와 바이트 노드를 생성하고 반환합니다.
-            /// </summary>
-            /// <param name="keyByte"></param>
-            /// <returns>"keyByte"를 가지는 바이트 노드 (notnull)</returns>
-            public ref ByteNode GetOrCreateByteNodeRef(byte keyByte)
-            {
-                ListNode* closestNodePtr = FindClosestNodePtr(keyByte);
-
-                // 찾는 바이트보다 작거나 같은 바이트를 가지는 노드가 없음 => 리스트의 헤드에 노드 생성 후 반환
-                if (closestNodePtr == null)
-                {
-                    // 리스트의 헤드에 노드 생성
-                    headNodePtr = ListNode.Create(keyByte, null, headNodePtr);
-                    count++;
-
-                    return ref headNodePtr->byteNode;
-                }
-                
-                // 찾은 노드 바이트가 찾는 바이트와 같음 => 찾은 노드 반환
-                if (closestNodePtr->byteNode.keyByte == keyByte)
-                {
-                    return ref closestNodePtr->byteNode;
-                }
-                // 찾은 노드 바이트가 찾는 바이트보다 작음 => 찾은 노드 다음에 노드 생성
-                else
-                {
-                    // 찾은 노드 다음에 노드 생성
-                    closestNodePtr->nextNodePtr = ListNode.Create(keyByte, closestNodePtr, closestNodePtr->nextNodePtr);
-                    count++;
-
-                    return ref headNodePtr->byteNode;
-                }
-            }
-            
-            /// <summary>
-            /// "keyByte"를 가지는 바이트 노드의 포인터를 반환함
-            /// </summary>
-            /// <param name="keyByte"></param>
-            /// <returns></returns>
-            public ref ByteNode GetByteNodeRef(byte keyByte)
-            {
-                ListNode* listNodePtr = FindListNodePtr(keyByte);
-                if (listNodePtr == null)
-                    throw new KeyNotFoundException($"'{keyByte}'를 가지는 바이트 노드가 없습니다.");
-
-                return ref listNodePtr->byteNode;
-            }
-            
-            /// <summary>
-            /// "keyByte"를 가지는 바이트 노드의 리스트 노드를 반환함  <br/>
-            /// </summary>
-            /// <param name="keyByte"></param>
-            /// <returns></returns>
-            ListNode* FindListNodePtr(byte keyByte)
-            {
-                ListNode* closestNodePtr = FindClosestNodePtr(keyByte);
-
-                // 찾는 바이트보다 작은 바이트를 가지는 노드가 없음 -> 헤드 노드(nullable) 반환
-                if (closestNodePtr == null)
-                    return headNodePtr;
-                
-                // 찾은 노드 바이트가 찾는 바이트와 같음 -> 찾은 노드 반환
-                if (closestNodePtr->byteNode.keyByte == keyByte)
-                {
-                    return closestNodePtr;
-                }
-                // 노드 바이트가 찾는 바이트보다 작음 -> null 반환
-                else
-                {
-                    return null;
-                }
-            }
-            
-            /// <summary>
-            /// "keyByte" 보다 작거나 같은 바이트 노드중 가장 큰 노드의 리스트 노드 을 반환함
-            /// </summary>
-            /// <param name="keyByte">찾을 바이트</param>
-            /// <returns>null: 헤드 노드가 없거나 헤드 노드 바이트 노드의 바이트가 "keyByte" 보다 큼</returns>
-            ListNode* FindClosestNodePtr(byte keyByte)
-            {
-                // 헤드 노드가 없음 -> null 반환
-                if (headNodePtr == null)
-                    return null;
-
-                // 헤드 노드 바이트가 찾는 바이트보다 큼 -> null 반환
-                if (headNodePtr->byteNode.keyByte > keyByte)
-                    return null;
-
-
-                ListNode* findNodePtr = headNodePtr;
-                ListNode* prevNodePtr = null;
-
-                while (findNodePtr != null)
-                {
-                    byte findKeyByte = findNodePtr->byteNode.keyByte;
-
-                    // 찾는 바이트와 일치함 -> 현재 노드 반환
-                    if (findKeyByte == keyByte)
-                    {
-                        return findNodePtr;
-                    }
-                    
-                    // 찾는 바이트보다 작음 -> 다음 노드로 이동
-                    if (findKeyByte < keyByte)
-                    {
-                        prevNodePtr = findNodePtr;
-                        findNodePtr = findNodePtr->nextNodePtr;
-                        continue;
-                    }
-                    // 찾는 바이트를 초과함 -> 이전 노드 반환
-                    else
-                    {
-                        return prevNodePtr;
-                    }
-                }
-
-                // 찾는 바이트보다 작은 노드가 존재하지 않음 -> 마지막 노드 반환
-                return prevNodePtr;
-            }
-            
-            public Enumerator GetEnumerator()
-                => new Enumerator(this);
-            
-            public void Dispose()
-            {
-                ListNode* findNodePtr = headNodePtr;
-                ListNode* nextNodePtr = null;
-
-                while (findNodePtr != null)
-                {
-                    // 찾은 노드의 바이트 노드 Dispose
-                    findNodePtr->Dispose();
-
-                    // 다음 노드 포인터 임시 저장
-                    nextNodePtr = findNodePtr->nextNodePtr;
-                    
-                    // 찾은 노드 메모리 해제
-                    Marshal.FreeHGlobal((IntPtr)findNodePtr);
-
-                    // 다음 노드로 이동
-                    findNodePtr = nextNodePtr;
-                }
-            }
-
 
         #endregion
 
         #endregion
     }
 
-    #region Public
-
     public ref struct Enumerator
     {
         NodeEnumerator nodeEnumerator;
 
-        public Enumerator(TempByteSpanTree<TValue> tree)
+        public Enumerator(UnmanagedByteSpanTree<TValue> tree)
         {
             this.nodeEnumerator = tree.GetNodeIterator();
         }
@@ -645,14 +212,9 @@ public partial struct TempByteSpanTree<TValue>
         }
     }
     
-    #endregion
-
-
-    #region Internal
-
     unsafe internal ref struct NodeEnumerator
     {
-        TempByteSpanTree<TValue> tree;
+        UnmanagedByteSpanTree<TValue> tree;
 
         UnmanagedStack<nint> findNodePtrStack;
 
@@ -664,7 +226,7 @@ public partial struct TempByteSpanTree<TValue>
 
 
         // 생성자
-        public NodeEnumerator(TempByteSpanTree<TValue> tree)
+        public NodeEnumerator(UnmanagedByteSpanTree<TValue> tree)
         {
             this.tree = tree;
             this.findNodePtrStack = new UnmanagedStack<nint>();
@@ -690,7 +252,7 @@ public partial struct TempByteSpanTree<TValue>
 
             // 초기 상태이면 -> rootNode/true 반환
             if (currentListNodePtr == null) {
-                currentListNodePtr = tree.byteNodeList.headNodePtr;
+                currentListNodePtr = tree.rootByteNodeList.headNodePtr;
                 findNodeStack.Push(-1);
                 return true;
             }
@@ -797,13 +359,11 @@ public partial struct TempByteSpanTree<TValue>
     
     #endregion
 
-    #endregion
-
     #region Instance
 
     #region 필드
 
-    UnmanagedLinkedList<ByteNode> byteNodeList;
+    ByteNode rootByteNode;
     public int nodeCount;
     public int valueCount;
     public int maxNodeDepth;
@@ -813,40 +373,32 @@ public partial struct TempByteSpanTree<TValue>
 
 
     // 생성자
-    public TempByteSpanTree()
+    public UnmanagedByteSpanTree()
     {
-        byteNodeList = new();
+        rootByteNodeList = new();
     }
 
 
     #region 메서드
 
-    public void Add(ReadOnlySpan<byte> key, TValue value)
+    unsafe public void Add(ReadOnlySpan<byte> key, TValue value)
     {
-        if (key.Length == 0)
-        {
-            throw new ArgumentException("키의 길이는 0보다 길어야 합니다.");
-        }
-
-        byte keyByte = key[0];
-
-        ref ByteNode findNode = ref byteNodeList.GetOrCreateByteNodeRef(keyByte);
-
-        int findByteIndex = 0;
         int keyLength = key.Length;
 
-        while (findByteIndex < keyLength)
-        {
-            // 키 바이트
-            keyByte = key[findByteIndex];
+        if (keyLength == 0)
+            throw new ArgumentException("키의 길이는 0보다 길어야 합니다.");
 
-            // 다음으로 이동
-            findNode = ref findNode.childListPtr.GetOrCreateByteNode(keyByte);
-            findByteIndex++;
+
+        ref ByteNode findByteNodePtr = ref rootByteNode;
+        
+        for (int i = 0; i < keyLength; i++)
+        {
+            byte keyByte = key[i];
+
+            findByteNodePtr = ref findByteNodePtr.GetOrCreateChildRef(keyByte);
         }
 
-        // 찾은 노드에 값을 설정
-        findNode.SetValue(value);
+        findByteNodePtr.SetValue(value);
     }
 
 
@@ -915,7 +467,7 @@ public partial struct TempByteSpanTree<TValue>
     public void Dispose()
     {
         // 노드 리스트를 Dispose
-        byteNodeList.Dispose();
+        rootByteNodeList.Dispose();
     }
 
     #endregion
