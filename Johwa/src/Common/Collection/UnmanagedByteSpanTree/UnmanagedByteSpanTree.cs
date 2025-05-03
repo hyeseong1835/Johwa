@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
-using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace Johwa.Common.Collection;
 
@@ -12,6 +12,15 @@ public partial struct UnmanagedByteSpanTree<TValue>
 {
     #region Object
     
+    public struct FindData
+    {
+        public int creatNodeCount;
+
+        public FindData()
+        {
+            this.creatNodeCount = 0;
+        }
+    }
     unsafe internal struct ByteNode : IDisposable
     {
         #region Static
@@ -100,7 +109,7 @@ public partial struct UnmanagedByteSpanTree<TValue>
             hasValue = true;
         }
 
-        public ref ByteNode GetOrCreateChildRef(byte keyByte)
+        public ref ByteNode GetOrCreateChildRef(ref FindData findData, byte keyByte)
         {
             UnmanagedLinkedList<ByteNode>.RefEnumerator childListRefEnumerator 
                 = new (ref childList);
@@ -122,7 +131,7 @@ public partial struct UnmanagedByteSpanTree<TValue>
                 // 찾음 : keyByte == cur
                 if (childListRefEnumerator.CurrentValuePtr->keyByte == keyByte)
                 {
-                    // 이미 자식 노드가 존재함 -> 추가하지 않음
+                    // 이미 자식 노드가 존재함 -> 참조 반환
                     return ref (*curInfo.ValuePtr);
                 }
 
@@ -130,6 +139,8 @@ public partial struct UnmanagedByteSpanTree<TValue>
                 if (prevInfo.IsNull)
                 {
                     // 가장 앞에 삽입
+                    findData.creatNodeCount++;
+
                     childList.AddFirst(new ByteNode(keyByte));
                     return ref (*childList.HeadValuePtr);
                 }
@@ -137,14 +148,16 @@ public partial struct UnmanagedByteSpanTree<TValue>
                 else
                 {
                     // 이전 노드 다음에 삽입
-                    ByteNode newByteNode = new ByteNode(keyByte);
+                    findData.creatNodeCount++;
 
                     // 삽입 및 참조 반환
-                    return ref (*prevInfo.InsertNextAndReturnPtr(newByteNode));
+                    return ref (*prevInfo.InsertNextAndReturnPtr(new ByteNode(keyByte)));
                 }
             }
 
             // keyByte보다 크거나 같은 자식이 존재하지 않음 => 마지막에 삽입
+            findData.creatNodeCount++;
+            
             return ref childList.AddLastAndReturnRef(new ByteNode(keyByte));
         }
         public void Dispose()
@@ -364,10 +377,9 @@ public partial struct UnmanagedByteSpanTree<TValue>
     #region 필드
 
     ByteNode rootByteNode;
+
     public int nodeCount;
     public int valueCount;
-    public int maxNodeDepth;
-    public int maxBranchDepth;
 
     #endregion
 
@@ -381,13 +393,15 @@ public partial struct UnmanagedByteSpanTree<TValue>
 
     #region 메서드
 
-    unsafe public void Add(ReadOnlySpan<byte> key, TValue value)
+    public void Add(ReadOnlySpan<byte> key, TValue value)
     {
         int keyLength = key.Length;
+
 
         if (keyLength == 0)
             throw new ArgumentException("키의 길이는 0보다 길어야 합니다.");
 
+        FindData findData = new FindData();
 
         ref ByteNode findByteNodePtr = ref rootByteNode;
         
@@ -395,14 +409,45 @@ public partial struct UnmanagedByteSpanTree<TValue>
         {
             byte keyByte = key[i];
 
-            findByteNodePtr = ref findByteNodePtr.GetOrCreateChildRef(keyByte);
+            findByteNodePtr = ref findByteNodePtr.GetOrCreateChildRef(ref findData, keyByte);
         }
 
+        nodeCount += findData.creatNodeCount;
+
+        if (findByteNodePtr.HasValue)
+            throw new ArgumentException($"'{Encoding.ASCII.GetString(key)}' 키는 이미 존재합니다.");
+            
+        
         findByteNodePtr.SetValue(value);
+        valueCount++;
+    }
+    public void AddOrSet(ReadOnlySpan<byte> key, TValue value)
+    {
+        int keyLength = key.Length;
+
+        if (keyLength == 0)
+            throw new ArgumentException("키의 길이는 0보다 길어야 합니다.");
+
+        FindData findData = new FindData();
+
+        ref ByteNode findByteNodePtr = ref rootByteNode;
+        
+        for (int i = 0; i < keyLength; i++)
+        {
+            byte keyByte = key[i];
+
+            findByteNodePtr = ref findByteNodePtr.GetOrCreateChildRef(ref findData, keyByte);
+        }
+
+        nodeCount += findData.creatNodeCount;
+
+        findByteNodePtr.SetValue(value);
+        if (findByteNodePtr.HasValue == false)
+        {
+            valueCount++;
+        }
     }
 
-
-    #region Public
 
     public TValue GetValue(ReadOnlySpan<byte> key)
     {
@@ -439,18 +484,17 @@ public partial struct UnmanagedByteSpanTree<TValue>
         }
     }
     
-    public Enumerator GetValueIterator()
-        => new ValueIterator(this);
+    public Enumerator GetEnumerator()
+        => new Enumerator(this);
     public TValue[] ToArray()
     {
         TValue[] valueArray = new TValue[valueCount];
 
-        using (Enumerator valueIterator = GetValueIterator())
+        using (Enumerator valueIterator = GetEnumerator())
         {
             for (int i = 0; i < valueCount; i++)
             {
-                TValue? currentValue;
-                if (valueIterator.MoveNext(out currentValue))
+                if (valueIterator.MoveNext())
                 {
                     valueArray[i] = currentValue;
                 }
@@ -470,10 +514,7 @@ public partial struct UnmanagedByteSpanTree<TValue>
         rootByteNodeList.Dispose();
     }
 
-    #endregion
 
-
-    #region Internal
 
     internal NodeEnumerator GetNodeIterator()
         => new NodeIterator(rootNode, maxBranchDepth);
@@ -523,9 +564,6 @@ public partial struct UnmanagedByteSpanTree<TValue>
         node = null;
         return false;
     }
-
-    #endregion
-
 
     #endregion
 
